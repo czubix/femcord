@@ -76,7 +76,7 @@ class WebSocket:
         await WebSocket.__init__(self, self.gateway, self.client)
 
     async def send(self, op: Opcodes, data: dict, *, sequences: int = None) -> None:
-        logging.debug(f"sent op: {op.name}, data: {data}, sequences: {sequences}".replace(self.gateway.token, "TOKEN"))
+        logging.debug(f"sent op: {op.name}, data: {data}, sequences: {sequences}".replace(self.client.token, "TOKEN"))
 
         ready_data = {
             "op": op.value,

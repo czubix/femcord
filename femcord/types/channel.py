@@ -157,6 +157,18 @@ class Channel:
         if response is not None:
             return [await Message.from_raw(self.__client, message) for message in response]
 
+    async def get_message(self, message_id: str) -> "Message":
+        for message in self.__client.gateway.messages:
+            if message.channel == self and message.id == message_id:
+                return message
+
+        message = await self.fetch_message(message_id)
+        message = await Message.from_raw(self.__client, message)
+
+        self.__client.gateway.cache_message(message)
+
+        return message
+
     async def purge(self, *, limit: Optional[int] = None, messages: Optional[Sequence[Union["Message", str]]] = [], key: Optional[Callable[["Message"], bool]] = None) -> List[dict]:
         if limit is not None:
             messages += [message for message in self.__client.gateway.messages if message.channel.id == self.id][-limit:]

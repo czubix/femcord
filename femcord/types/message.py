@@ -45,6 +45,7 @@ class Attachment:
     size: int
     url: str
     proxy_url: str
+    title: str = None
     height: int = None
     width: int = None
     description: str = None
@@ -59,11 +60,18 @@ class Attachment:
 
 @dataclass
 class MessageReference:
-    type: int = None
+    __client: "Client"
+    type: MessageReferences = None
     message_id: str = None
     channel_id: str = None
     guild_id: str = None
     fail_if_not_exists: bool = None
+
+    @classmethod
+    async def from_raw(cls, client, reference):
+        reference["type"] = MessageReferences(reference["type"])
+
+        return cls(client, **reference)
 
 @dataclass
 class MessageSticker:
@@ -167,6 +175,8 @@ class Message:
     mention_channels: Sequence[Channel] = None
     webhook_id: str = None
     message_reference: MessageReference = None
+    referenced_message: "Message" = None
+    message_snapshot: "Message" = None
     interaction: Interaction = None
     thread: Channel = None
     application_id: str = None
@@ -224,7 +234,9 @@ class Message:
         if "reactions" in message:
             message["reactions"] = [await MessageReaction.from_raw(client, reaction) for reaction in message["reactions"]]
         if "message_reference" in message:
-            message["message_reference"] = MessageReference(**message["message_reference"])
+            message["message_reference"] = await MessageReference.from_raw(client, message["message_reference"])
+        if "referenced_message" in message:
+            message["referenced_message"] = await Message.from_raw(client, message["referenced_message"])
         if "attachments" in message:
             message["attachments"] = [Attachment(**attachment) for attachment in message["attachments"]]
         if "type" in message:

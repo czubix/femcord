@@ -32,7 +32,7 @@ class Embed:
             self.set_timestamp(timestamp)
 
     def __add__(self, embed: "Embed") -> "Embed":
-        new_embed: Embed = Embed()
+        new_embed = Embed()
         new_embed.__dict__ = self.__dict__
 
         for key, new_value in embed.__dict__.items():

@@ -20,6 +20,8 @@ from enum import Enum
 
 from .opus import Encoder, OPUS_SILENCE
 
+from .utils import MISSING
+
 from typing import List, Tuple, Union, Callable, Awaitable, Any, IO, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -101,11 +103,11 @@ class VoiceHeartbeat:
         self.loop = asyncio.get_event_loop()
         self.voice = voice
         self.heartbeat_interval = interval
-        self.heartbeat_task: asyncio.Task = None
-        self.time: float = None
+        self.heartbeat_task: asyncio.Task = MISSING
+        self.time: float = MISSING
 
     def send(self) -> Awaitable[None]:
-        return self.voice.send(Opcodes.HEARTBEAT_ACK, time.time() * 1000)
+        return self.voice.send(Opcodes.HEARTBEAT, time.time() * 1000)
 
     async def heartbeat_loop(self) -> None:
         await self.send()
@@ -138,24 +140,24 @@ class VoiceWebSocket:
         self.session = aiohttp.ClientSession(loop=self.loop)
         self.ws = await self.session.ws_connect(self.url)
 
-        self.ssrc: int = None
+        self.ssrc: int = MISSING
         self.sequence = 0
         self.timestamp = 0
 
-        self.address: Tuple[str, int] = None
-        self.ip: str = None
-        self.port: int = None
+        self.address: Tuple[str, int] = MISSING
+        self.ip: str = MISSING
+        self.port: int = MISSING
 
-        self.secret_key: bytes = None
+        self.secret_key: bytes = MISSING
 
         self.ready = False
 
         self.encoder = Encoder()
 
-        self.socket: socket.socket = None
+        self.socket: socket.socket = MISSING
 
-        self.heartbeat: VoiceHeartbeat = None
-        self.socket_reader: SocketReader = None
+        self.heartbeat: VoiceHeartbeat = MISSING
+        self.socket_reader: SocketReader = MISSING
 
         self.task = self.loop.create_task(self.run())
 
@@ -189,7 +191,7 @@ class VoiceWebSocket:
             self.sequence = 0
 
         packet = self.encoder.encode(data, self.encoder.SAMPLES_PER_FRAME)
-        packet = self.get_voice_packet(data)
+        packet = self.get_voice_packet(packet)
 
         try:
             self.socket.sendall(packet)
@@ -249,7 +251,7 @@ class VoiceWebSocket:
 
                 match op:
                     case Opcodes.HELLO:
-                        self.heartbeat = VoiceHeartbeat(self.ws, data["heartbeat_interval"])
+                        self.heartbeat = VoiceHeartbeat(self, data["heartbeat_interval"])
                         self.heartbeat.start()
                     case Opcodes.READY:
                         self.ssrc = data["ssrc"]
@@ -289,8 +291,8 @@ class AudioPlayer(threading.Thread):
         self.running = threading.Event()
         self.paused = threading.Event()
 
-        self.loops: int = None
-        self._start: int = None
+        self.loops: int = MISSING
+        self._start: float = MISSING
 
     def run(self) -> None:
         self.loops = 0
@@ -325,7 +327,7 @@ class Player:
         self.client = client
         self.websocket = await VoiceWebSocket(client, **kwargs)
 
-        self.audio_player: AudioPlayer = None
+        self.audio_player: AudioPlayer = MISSING
 
         while not self.websocket.ready:
             await asyncio.sleep(1)

@@ -93,9 +93,6 @@ class Gateway:
         self.loop = asyncio.get_event_loop()
         self.__client = client
         self.__http = client.http
-        self.intents = client.intents
-        self.token = client.token
-        self.bot = client.bot
         self.ws: "WebSocket" = None
         self.ready = False
         self.heartbeat: Heartbeat = None
@@ -104,8 +101,6 @@ class Gateway:
         self.last_latencies_limit = client.last_latencies_limit
         self.session_id: str = None
         self.sequence_number: int = None
-        self.listeners = client.listeners
-        self.waiting_for = client.waiting_for
 
         self.resuming: bool = False
         self.last_sequence_number: int = None
@@ -129,7 +124,7 @@ class Gateway:
         await WebSocket(self, client)
 
     async def dispatch(self, event: str, *args, **kwargs) -> None:
-        for listener in self.waiting_for:
+        for listener in self.__client.waiting_for:
             if listener[0] == event:
                 if listener[2](*args, **kwargs) is True:
                     try:
@@ -137,9 +132,9 @@ class Gateway:
                     except Exception:
                         traceback.print_exc()
 
-                    return self.waiting_for.remove(listener)
+                    return self.__client.waiting_for.remove(listener)
 
-        for listener in self.listeners:
+        for listener in self.__client.listeners:
             if listener.__name__ == "on_" + event:
                 try:
                     self.loop.create_task(listener(*args, **kwargs))
@@ -156,7 +151,7 @@ class Gateway:
         self.reset()
 
         identify_data = {
-            "token": self.token,
+            "token": self.__client.token,
             "properties": {
                 "os": sys.platform,
                 "browser": "femcord",
@@ -165,8 +160,8 @@ class Gateway:
             "large_threshold": 250
         }
 
-        if self.bot is True:
-            identify_data["intents"] = self.intents.get_int()
+        if self.__client.bot is True:
+            identify_data["intents"] = self.__client.intents.get_int()
 
         if self.presence is not None:
             identify_data["presence"] = self.presence.to_dict()
@@ -175,7 +170,7 @@ class Gateway:
 
     async def resume(self) -> None:
         await self.ws.send(Opcodes.RESUME, {
-            "token": self.token,
+            "token": self.__client.token,
             "session_id": self.session_id,
             "seq": self.last_sequence_number
         })
@@ -226,7 +221,7 @@ class Gateway:
 
             self.ready = True
 
-            if self.bot is False:
+            if self.__client.bot is False:
                 self.unavailable_guilds = []
                 self.guilds = [await Guild.from_raw(self.__client, guild) for guild in data["guilds"]]
 
@@ -288,6 +283,12 @@ class Gateway:
             for channel in guild.channels:
                 if channel.id == channel_id:
                     return guild
+
+    def cache_message(self, message: Message) -> None:
+        self.messages.append(message)
+
+        if len(self.messages) > self.messages_limit:
+            del self.messages[0]
 
     async def fetch_user(self, user_id: str) -> Union[dict, str]:
         return await self.__http.request(Route("GET", "users", user_id))
@@ -419,20 +420,20 @@ class Gateway:
             guild.members.append(member)
 
             if presences:
-                if self.intents.has(IntentsEnum.GUILD_PRESENCES) is True:
+                if self.__client.intents.has(IntentsEnum.GUILD_PRESENCES) is True:
                     for presence in presences:
                         if "user" in presence and presence["user"]["id"] == member.user.id:
                             member.presence = await Presence.from_raw(self.__client, presence)
                         await asyncio.sleep(0)
 
-    @handler.event
+    @handler.event # DODAC VOICE STATE BJ EST
     async def guild_create(self, guild):
         members = guild["members"]
         guild = await Guild.from_raw(self.__client, guild)
         self.guilds.append(guild)
 
         if guild.member_count != len(members):
-            await self.ws.send(Opcodes.REQUEST_GUILD_MEMBERS, {"guild_id": guild.id, "query": "", "limit": 0, "presences": self.intents.has(IntentsEnum.GUILD_PRESENCES)})
+            await self.ws.send(Opcodes.REQUEST_GUILD_MEMBERS, {"guild_id": guild.id, "query": "", "limit": 0, "presences": self.__client.intents.has(IntentsEnum.GUILD_PRESENCES)})
         else:
             self.requested.append(guild.id)
             self.loop.create_task(self.add_members(guild, members))
@@ -636,6 +637,9 @@ class Gateway:
 
         role = guild.get_role(role["role_id"])
 
+        if not role:
+            return
+
         index = get_index(guild.roles, role.id, key=lambda r: r.id)
         del guild.roles[index]
 
@@ -649,10 +653,7 @@ class Gateway:
     async def message_create(self, message):
         message = await Message.from_raw(self.__client, message)
 
-        self.messages.append(message)
-
-        if len(self.messages) > self.messages_limit:
-            del self.messages[0]
+        self.cache_message(message)
 
         return message,
 

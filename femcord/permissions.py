@@ -19,11 +19,9 @@ from .errors import PermissionNotExist
 
 from functools import reduce
 
-from typing import TypeVar, Union
+from typing import Union
 
 __all__ = ("Permissions",)
-
-Permissions = TypeVar("Permissions")
 
 class Permissions:
     def __init__(self, *permissions: Union[PermissionsEnum, str]) -> None:
@@ -47,13 +45,13 @@ class Permissions:
 
         return permission
 
-    def add(self, permission: int) -> Permissions:
+    def add(self, permission: int) -> "Permissions":
         permission = self.check(permission)
         self.permissions.append(permission)
 
         return self
 
-    def remove(self, permission: int) -> Permissions:
+    def remove(self, permission: int) -> "Permissions":
         permission = self.check(permission)
         self.permissions.remove(permission)
 
@@ -74,9 +72,9 @@ class Permissions:
         return permission in self.permissions
 
     @classmethod
-    def all(cls) -> Permissions:
+    def all(cls) -> "Permissions":
         return cls(*PermissionsEnum)
 
     @classmethod
-    def from_int(cls, permissions: int) -> Permissions:
+    def from_int(cls, permissions: int) -> "Permissions":
         return cls(*(permission for permission in PermissionsEnum if permissions & permission.value == permission.value))

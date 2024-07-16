@@ -26,12 +26,15 @@ from .errors import *
 
 import json, logging
 
-from typing import Optional, List, Sequence, Union, Coroutine
+from typing import Optional, List, Dict, Sequence, Union, Coroutine
 
 class Route:
     def __init__(self, method: str, *endpoint: str) -> None:
         self.method = method
         self.endpoint = "/" + "/".join(endpoint)
+
+    def __hash__(self) -> int:
+        return hash(self.method + " " + "/".join(self.endpoint))
 
     def __eq__(self, route) -> bool:
         return self.method == route.method and self.endpoint == route.endpoint
@@ -54,8 +57,18 @@ class HTTP:
         self.session: ClientSession = ClientSession(loop=self.loop)
         self.token: str = client.token
         self.bot: bool = client.bot
+        self.ratelimits: Dict[Route, List[int, int]] = {}
 
     async def request(self, route: Route, *, headers: Optional[dict] = {}, data: Optional[dict] = None, params: Optional[dict] = None, files: Optional[List[Union[str, bytes]]] = None) -> Union[dict, str]:
+        # for ratelimit in self.ratelimits:
+        #     if ratelimit == route:
+        #         ratelimit[1] += 1
+        #         await asyncio.sleep(ratelimit[0] * ratelimit[1])
+        #         ratelimit[1] -= 1
+
+        #         if ratelimit[1] == 0:
+        #             self.ratelimits.pop(ratelimit)
+
         headers.update({"authorization": ("Bot " if self.bot is True else "") + self.token, "user-agent": "femcord"})
 
         kwargs = dict(json=data)
@@ -92,6 +105,7 @@ class HTTP:
                 raise HTTPException(message, response.status, response_data)
 
             elif response.status == 429:
+                # self.ratelimits[route] = [response_data["retry_after"], 1]
                 await asyncio.sleep(response_data["retry_after"])
                 return await self.request(route, headers=headers, data=data, params=params, files=files)
 
@@ -155,7 +169,13 @@ class HTTP:
     def delete_message(self, channel_id: str, message_id: str) -> Coroutine:
         return self.request(Route("DELETE", "channels", channel_id, "messages", message_id))
 
-    def interaction_callback(self, interaction_id: str, interaction_token: str, interaction_type: InteractionCallbackTypes, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: str = None, embed: Embed = None, embeds: Sequence[Embed] = None, components: Optional[Components] = None, files: Optional[List[Union[str, bytes]]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, other: Optional[dict] = {}) -> Coroutine:
+    def interaction_callback(self, interaction_id: str, interaction_token: str, interaction_type: InteractionCallbackTypes, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: str = None, embed: Embed = None, embeds: Sequence[Embed] = None, components: Optional[Components] = None, files: Optional[List[Union[str, bytes]]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, flags: Optional[List[MessageFlags]] = None, other: Optional[dict] = {}) -> Coroutine:
+        if flags:
+            other["flags"] = 0
+
+            for flag in flags:
+                other["flags"] |= flag.value
+
         data = {"type": interaction_type.value, "data": {**other, "allowed_mentions": {"parse": mentions, "users": [], "replied_user": False}}}
 
         if content is not None:

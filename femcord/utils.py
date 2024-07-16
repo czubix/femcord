@@ -25,6 +25,15 @@ from typing import Callable, Iterable, Union, Any
 DISCORD_EPOCH = 1420070400000
 ID_PATTERN = re.compile(r"\d{16,19}")
 
+class Missing:
+    def __eq__(self, other: Any) -> bool:
+        return False
+
+    def __bool__(self) -> bool:
+        return False
+
+MISSING: Any = Missing()
+
 def parse_time(timestamp: Union[str, datetime]) -> Union[datetime, None]:
     if isinstance(timestamp, str):
         timestamp = timestamp.replace(" ", "T")

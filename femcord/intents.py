@@ -19,11 +19,9 @@ from .errors import IntentNotExist
 
 from functools import reduce
 
-from typing import TypeVar, Union
+from typing import Union
 
 __all__ = ("Intents",)
-
-Intents = TypeVar("Intents")
 
 class Intents:
     def __init__(self, *intents: Union[IntentsEnum, str]) -> None:
@@ -47,19 +45,19 @@ class Intents:
 
         return intent
 
-    def add(self, intent: Union[IntentsEnum, str]) -> Intents:
+    def add(self, intent: Union[IntentsEnum, str]) -> "Intents":
         intent = self.check(intent)
         self.intents.append(intent)
 
         return self
 
-    def remove(self, intent: Union[IntentsEnum, str]) -> Intents:
+    def remove(self, intent: Union[IntentsEnum, str]) -> "Intents":
         intent = self.check(intent)
         self.intents.remove(intent)
 
         return self
 
-    def get_int(self) -> Intents:
+    def get_int(self) -> "Intents":
         return reduce(lambda a, b: a | b, [intent.value for intent in IntentsEnum if intent in self.intents])
 
     def has(self, intent: Union[IntentsEnum, str]) -> bool:
@@ -68,13 +66,13 @@ class Intents:
         return intent in self.intents
 
     @classmethod
-    def all(cls) -> Intents:
+    def all(cls) -> "Intents":
         return cls(*(intent for intent in IntentsEnum))
 
     @classmethod
-    def default(cls) -> Intents:
+    def default(cls) -> "Intents":
         return cls(*(intent for intent in IntentsEnum if not intent in (IntentsEnum.GUILD_MEMBERS, IntentsEnum.GUILD_PRESENCES, IntentsEnum.GUILD_MESSAGES)))
 
     @classmethod
-    def from_int(cls, intents: Union[IntentsEnum, str]) -> Intents:
+    def from_int(cls, intents: Union[IntentsEnum, str]) -> "Intents":
         return cls(*(intent for intent in IntentsEnum if intents & intent.value == intent.value))

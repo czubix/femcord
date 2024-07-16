@@ -33,12 +33,14 @@ import importlib.util, inspect, traceback, sys
 from typing import Callable, Union, Optional, Iterable, List, Any
 
 class Bot(Client):
-    def __init__(self, *, name: Union[str, None] = None, command_prefix: Union[Callable, str], intents: Intents = Intents.all(), messages_limit: int = 1000, owners: Iterable[str] = []) -> None:
-        super().__init__(intents = intents, messages_limit = messages_limit)
+    def __init__(self, *, name: Union[str, None] = None, command_prefix: Union[Callable, str], intents: Intents = Intents.all(), messages_limit: int = 1000, owners: Iterable[str] = [], context: Context = None) -> None:
+        super().__init__(intents=intents, messages_limit=messages_limit)
 
         self.name = name
         self.owners = list(owners)
         self.original_prefix = self.command_prefix = command_prefix
+
+        self.context = context or Context
 
         if not callable(self.command_prefix):
             async def command_prefix(self, _):
@@ -257,7 +259,7 @@ class Bot(Client):
         command = content_split[0]
         arguments = content_split[1:]
 
-        context = Context(self, message)
+        context = self.context(self, message)
 
         command_object: Union[Command, Group, None] = self.get_command(command)
         skip_arguments = 1

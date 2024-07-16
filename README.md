@@ -12,6 +12,12 @@ $ cd femcord
 $ python3 -m pip install -U .
 ```
 
+or
+
+```bash
+$ python3 -m pip install git+https://github.com/czubix/femcord.git
+```
+
 ## Quick start
 
 Below are some quick examples to help you get started with femcord. Detailed documentation will be provided later.
@@ -20,9 +26,9 @@ Below are some quick examples to help you get started with femcord. Detailed doc
 
 ```py
 import femcord
-from femcord.commands import Bot
+from femcord import commands
 
-bot = Bot(command_prefix="!", intents=femcord.Intents.all())
+bot = commands.Bot(command_prefix="!", intents=femcord.Intents.all())
 
 @bot.event
 async def on_ready():

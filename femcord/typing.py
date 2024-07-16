@@ -18,14 +18,14 @@ import asyncio
 
 from .types import Message
 
-from typing import Union
+from typing import Awaitable
 
 class Typing:
     def __init__(self, message: Message) -> None:
         self.loop = asyncio.get_event_loop()
         self.message = message
 
-    def send(self) -> Union[dict, str]:
+    def send(self) -> Awaitable:
         return self.message.channel.start_typing()
 
     async def do_typing(self) -> None:
@@ -33,10 +33,10 @@ class Typing:
             await asyncio.sleep(5)
             await self.send()
 
-    def start(self) -> None:
+    def start(self) -> Awaitable:
         return self.__aenter__()
 
-    def stop(self) -> None:
+    def stop(self) -> Awaitable:
         return self.__aexit__(None, None, None)
 
     async def __aenter__(self) -> None:

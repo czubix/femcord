@@ -29,6 +29,7 @@ from .voice import VoiceState
 
 channel.Message = Message
 
+interaction.Message = Message
 interaction.MessageComponents = MessageComponents
 
 from datetime import datetime

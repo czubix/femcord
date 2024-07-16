@@ -141,10 +141,13 @@ class Interaction:
         if "message" in interaction:
             index = get_index(client.gateway.messages, interaction["message"]["id"], key=lambda m: m.id)
 
-            if index is not None:
+            if index is None:
+                interaction["message"] = await Message.from_raw(client, interaction["message"])
+                client.gateway.cache_message(interaction["message"])
+            else:
                 interaction["message"] = client.gateway.messages[index]
 
         return cls(client, **interaction)
 
-    async def callback(self, interaction_type: InteractionCallbackTypes, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: Optional[str] = None, embed: "Embed" = None, embeds: Sequence["Embed"] = None, components: Optional["Components"] = None, files: Optional[List[Union[str, bytes]]] = None, mentions: Optional[list] = [], other: Optional[dict] = {}):
-        return await self.__client.http.interaction_callback(self.id, self.token, interaction_type, content, title=title, custom_id=custom_id, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, other=other)
+    async def callback(self, interaction_type: InteractionCallbackTypes, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: Optional[str] = None, embed: "Embed" = None, embeds: Sequence["Embed"] = None, components: Optional["Components"] = None, files: Optional[List[Union[str, bytes]]] = None, mentions: Optional[list] = [], flags: Optional[List[MessageFlags]] = None, other: Optional[dict] = {}):
+        return await self.__client.http.interaction_callback(self.id, self.token, interaction_type, content, title=title, custom_id=custom_id, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, flags=flags, other=other)
