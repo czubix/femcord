@@ -350,3 +350,8 @@ class ActivityFlags(Enum):
     PARTY_PRIVACY_FRIENDS =1 << 6
     PARTY_PRIVACY_VOICE_CHANNEL = 1 << 7
     EMBEDDED = 1 << 8
+
+class InviteTypes(Enum):
+    GUILD = 0
+    GROUP_DM = 1
+    FRIEND = 2

@@ -20,7 +20,7 @@ from datetime import datetime
 
 import re
 
-from typing import Callable, Iterable, Union, Any
+from typing import Callable, Iterable, Union, Optional, Any
 
 DISCORD_EPOCH = 1420070400000
 ID_PATTERN = re.compile(r"\d{16,19}")
@@ -34,7 +34,7 @@ class Missing:
 
 MISSING: Any = Missing()
 
-def parse_time(timestamp: Union[str, datetime]) -> Union[datetime, None]:
+def parse_time(timestamp: Union[str, datetime]) -> Optional[datetime]:
     if isinstance(timestamp, str):
         timestamp = timestamp.replace(" ", "T")
         return datetime.fromisoformat(timestamp)
@@ -57,7 +57,7 @@ def get_mime(data: bytes) -> str:
 
     raise InvalidArgument("Unsupported image type given")
 
-def get_index(iterable: Iterable, value: Any, *, key: Union[Callable, None] = None) -> Union[int, None]:
+def get_index(iterable: Iterable, value: Any, *, key: Optional[Callable] = None) -> Optional[int]:
     for i, v in enumerate(iterable):
         if key and key(v) == value:
             return i

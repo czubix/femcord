@@ -131,7 +131,7 @@ class Channel:
         return cls(client, **channel)
 
     @classmethod
-    def from_arg(cls, ctx: "Context", argument) -> Union["Channel", None]:
+    def from_arg(cls, ctx: "Context", argument) -> Optional["Channel"]:
         result = ID_PATTERN.search(argument)
 
         if result is not None:

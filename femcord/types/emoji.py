@@ -38,10 +38,15 @@ class Emoji:
     available: bool = None
 
     def __str__(self):
-        return "<Emoji id={!r} name={!r} animated={!r}>".format(self.id, self.name, self.animated)
+        return f"<{"a" if self.animated else ""}:{self.name}:{self.id}>"
 
     def __repr__(self):
         return "<Emoji id={!r} name={!r} animated={!r}>".format(self.id, self.name, self.animated)
+
+    @property
+    def url(self) -> str:
+        extension = ".gif" if self.animated else ".png"
+        return "https://cdn.discordapp.com/emojis/" + self.id + extension
 
     @classmethod
     async def from_raw(cls, client, emoji):

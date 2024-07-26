@@ -18,7 +18,7 @@ import asyncio
 
 from .websocket import WebSocket
 from .http import HTTP, Route
-from .utils import get_index, parse_time
+from .utils import get_index, get_mime, parse_time
 
 from .enums import *
 from .types import *
@@ -26,9 +26,9 @@ from .types import *
 from .enums import Intents as IntentsEnum
 from types import CoroutineType
 
-import sys, traceback, time, copy
+import sys, base64, traceback, time, copy
 
-from typing import Callable, Union, List, Dict, Coroutine, TYPE_CHECKING
+from typing import Callable, Union, List, Dict, Optional, Coroutine, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .client import Client
@@ -106,9 +106,9 @@ class Gateway:
         self.last_sequence_number: int = None
 
         self.bot_user: User = None
+        self.emojis: List[Emoji] = None
 
         self.guilds: List[Guild] = []
-        self.requested: List[str] = []
         self.unavailable_guilds: List[dict] = []
         self.users: List[User] = []
         self.user_ids: List[str] = []
@@ -143,7 +143,6 @@ class Gateway:
 
     def reset(self) -> None:
         self.guilds = []
-        self.requested = []
         self.unavailable_guilds = []
         self.users = []
 
@@ -217,6 +216,7 @@ class Gateway:
         if event_name == "READY":
             self.session_id = data["session_id"]
             self.bot_user = await User.from_raw(self.__client, data["user"])
+            self.emojis = await self.get_application_emojis()
             self.unavailable_guilds = data["guilds"]
 
             self.ready = True
@@ -289,6 +289,55 @@ class Gateway:
 
         if len(self.messages) > self.messages_limit:
             del self.messages[0]
+
+    def get_emoji(self, *, emoji_id: str = None, name: str = None) -> Emoji:
+        if emoji_id is not None:
+            kwargs = dict(value=emoji_id, key=lambda e: e.id)
+        if name is not None:
+            kwargs = dict(value=name, key=lambda e: e.name)
+
+        index = get_index(self.emojis, **kwargs)
+
+        if index is None:
+            raise Exception("Emoji not found")
+
+        return self.emojis[index]
+
+    async def get_application_emojis(self) -> List[Emoji]:
+        return [await Emoji.from_raw(self.__client, emoji) for emoji in (await self.__http.get_application_emojis(self.bot_user.id))["items"]]
+
+    async def create_application_emoji(self, name: str, image: bytes) -> Emoji:
+        image = f"data:{get_mime(image)};base64," + base64.b64encode(image).decode()
+        emoji = await Emoji.from_raw(self.__client, await self.__http.create_application_emoji(name, image))
+        self.emojis.append(emoji)
+        return emoji
+
+    async def edit_application_emoji(self, emoji_id: str, *, name: Optional[str] = None, image: Optional[bytes] = None) -> Emoji:
+        if image is not None:
+            image = f"data:{get_mime(image)};base64," + base64.b64encode(image).decode()
+
+        index = get_index(self.emojis, emoji_id, key=lambda e: e.id)
+
+        if index is None:
+            raise Exception("Emoji not found")
+
+        del self.emojis[index]
+
+        emoji = await Emoji.from_raw(self.__client, await self.__http.edit_application_emoji(self.bot_user.id, emoji_id, name=name, image=image))
+
+        self.emojis.insert(index, emoji)
+
+        return emoji
+
+    async def delete_application_emoji(self, emoji_id: str) -> None:
+        index = get_index(self.emojis, emoji_id, key=lambda e: e.id)
+
+        if index is None:
+            raise Exception("Emoji not found")
+
+        await self.__http.delete_application_emoji(emoji_id)
+
+        del self.emojis[index]
 
     async def fetch_user(self, user_id: str) -> Union[dict, str]:
         return await self.__http.request(Route("GET", "users", user_id))
@@ -435,7 +484,6 @@ class Gateway:
         if guild.member_count != len(members):
             await self.ws.send(Opcodes.REQUEST_GUILD_MEMBERS, {"guild_id": guild.id, "query": "", "limit": 0, "presences": self.__client.intents.has(IntentsEnum.GUILD_PRESENCES)})
         else:
-            self.requested.append(guild.id)
             self.loop.create_task(self.add_members(guild, members))
 
         return guild,
@@ -444,18 +492,21 @@ class Gateway:
     async def guild_members_chunk(self, chunk):
         self.loop.create_task(self.add_members(self.get_guild(chunk["guild_id"]), chunk["members"], chunk["presences"]))
 
-        if chunk["chunk_index"] + 1 == chunk["chunk_count"]:
-            self.requested.append(chunk["guild_id"])
-
         return chunk,
 
     @handler.event
     async def presence_update(self, presence):
-        if sorted([guild.id for guild in self.guilds]) != sorted(self.requested):
+        guild = self.get_guild(presence["guild_id"])
+
+        if not guild:
             return
 
-        guild = self.get_guild(presence["guild_id"])
-        member = await guild.get_member(presence["user"]["id"])
+        index = get_index(guild.members, presence["user"]["id"], key=lambda m: m.user.id)
+
+        if not index:
+            return
+
+        member = guild.members[index]
 
         member.presence = await Presence.from_raw(self.__client, presence)
 

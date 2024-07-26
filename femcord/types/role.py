@@ -22,7 +22,7 @@ from ..permissions import Permissions
 
 from datetime import datetime
 
-from typing import Union, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -57,7 +57,7 @@ class Role:
         return cls(client, **role)
 
     @classmethod
-    def from_arg(cls, ctx: "Context", argument) -> Union["Role", None]:
+    def from_arg(cls, ctx: "Context", argument) -> Optional["Role"]:
         result = ID_PATTERN.search(argument)
 
         if result is not None:

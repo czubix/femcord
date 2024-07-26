@@ -33,7 +33,7 @@ import importlib.util, inspect, traceback, sys
 from typing import Callable, Union, Optional, Iterable, List, Any
 
 class Bot(Client):
-    def __init__(self, *, name: Union[str, None] = None, command_prefix: Union[Callable, str], intents: Intents = Intents.all(), messages_limit: int = 1000, owners: Iterable[str] = [], context: Context = None) -> None:
+    def __init__(self, *, name: Optional[str] = None, command_prefix: Union[Callable, str], intents: Intents = Intents.all(), messages_limit: int = 1000, owners: Iterable[str] = [], context: Context = None) -> None:
         super().__init__(intents=intents, messages_limit=messages_limit)
 
         self.name = name
@@ -98,7 +98,7 @@ class Bot(Client):
 
         return decorator
 
-    def get_command(self, command: Command, guild_id: Optional[str] = None) -> Union[Command, None]:
+    def get_command(self, command: Command, guild_id: Optional[str] = None) -> Optional[Union[Command, Group]]:
         commands = self.commands
 
         if guild_id is not None:
@@ -165,7 +165,7 @@ class Bot(Client):
 
         cog.on_load()
 
-    def get_cog(self, cog: Cog) -> Union[Cog, None]:
+    def get_cog(self, cog: Cog) -> Optional[Cog]:
         index = get_index(self.cogs, cog, key=lambda cog: cog.name)
 
         if index is None:
@@ -215,7 +215,7 @@ class Bot(Client):
 
         self.extensions.append(extension)
 
-    def get_extension(self, extension: ModuleType) -> Union[ModuleType, None]:
+    def get_extension(self, extension: ModuleType) -> Optional[ModuleType]:
         index = get_index(self.extensions, extension, key=lambda command: command.__name__)
 
         if index is None:
@@ -261,7 +261,7 @@ class Bot(Client):
 
         context = self.context(self, message)
 
-        command_object: Union[Command, Group, None] = self.get_command(command)
+        command_object = self.get_command(command)
         skip_arguments = 1
 
         if command_object and command_object.guild_id and not context.guild.id == command_object.guild_id:

@@ -18,7 +18,7 @@ from .enums import CommandTypes
 
 from ..utils import get_index
 
-from typing import Callable, Union, List, TYPE_CHECKING
+from typing import Callable, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from . import Context
@@ -26,17 +26,17 @@ if TYPE_CHECKING:
 class Command:
     def __init__(self, **kwargs):
         self.type: CommandTypes = kwargs["type"]
-        self.parent: Union[str, None] = kwargs.get("parent", None)
-        self.cog: Union[Cog, None] = kwargs.get("cog", None)
+        self.parent: Optional[str] = kwargs.get("parent", None)
+        self.cog: Optional[Cog] = kwargs.get("cog", None)
 
         self.callback: Callable = kwargs["callback"]
         self.name: str = kwargs.get("name") or self.callback.__name__
-        self.description: Union[str, None] = kwargs.get("description")
-        self.usage: Union[str, None] = kwargs.get("usage")
+        self.description: Optional[str] = kwargs.get("description")
+        self.usage: Optional[str] = kwargs.get("usage")
         self.enabled: bool = kwargs.get("enabled", True)
         self.hidden: bool = kwargs.get("hidden", False)
         self.aliases: List[str] = kwargs.get("aliases", [])
-        self.guild_id: Union[str, None] = kwargs.get("guild_id", None)
+        self.guild_id: Optional[str] = kwargs.get("guild_id", None)
         self.other: dict = kwargs.get("other", {})
 
     async def __call__(self, context: "Context", *args, **kwargs) -> None:
@@ -75,7 +75,7 @@ class Group(Command):
 
         return decorator
 
-    def get_subcommand(self, command: str) -> Union[Command, None]:
+    def get_subcommand(self, command: str) -> Optional[Command]:
         index = get_index(self.subcommands, command, key=lambda c: c.name)
 
         if index is None:
@@ -101,8 +101,8 @@ class Group(Command):
 
 class Listener:
     def __init__(self, callback: Callable) -> None:
-        self.callback: Callable = callback
-        self.cog: Union[Cog, None] = None
+        self.callback = callback
+        self.cog: Optional[Cog] = None
         self.__name__ = callback.__name__
 
     def __str__(self) -> str:
@@ -119,7 +119,7 @@ class Listener:
 
 class Cog:
     name: str
-    description: Union[str, None]
+    description: Optional[str]
     hidden: bool
     listeners: List[Listener]
     commands: List[Command]

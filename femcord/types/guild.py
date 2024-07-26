@@ -30,7 +30,7 @@ from .member import Member
 
 from datetime import datetime
 
-from typing import Optional, List, Dict, TYPE_CHECKING
+from typing import List, Dict, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -192,7 +192,7 @@ class Guild:
 
         return cls(client, **guild)
 
-    def get_channel(self, channel_id_or_name: str) -> Union[Channel, None]:
+    def get_channel(self, channel_id_or_name: str) -> Optional[Channel]:
         if not channel_id_or_name:
             return
 
@@ -200,7 +200,7 @@ class Guild:
             if channel.name.lower() == channel_id_or_name.lower() or channel.id == channel_id_or_name:
                 return channel
 
-    def get_role(self, role_id_or_name: str) -> Union[Role, None]:
+    def get_role(self, role_id_or_name: str) -> Optional[Role]:
         if not role_id_or_name:
             return
 
@@ -208,7 +208,7 @@ class Guild:
             if role.name.lower() == role_id_or_name.lower() or role.id == role_id_or_name:
                 return role
 
-    def get_emoji(self, emoji_name_or_id: str) -> Union[Emoji, None]:
+    def get_emoji(self, emoji_name_or_id: str) -> Optional[Emoji]:
         if not emoji_name_or_id:
             return
 
@@ -219,7 +219,7 @@ class Guild:
             if emoji.name.lower() == emoji_name_or_id.lower() or emoji.id == emoji_name_or_id:
                 return emoji
 
-    def get_sticker(self, sticker_name_or_id: str) -> Union[Sticker, None]:
+    def get_sticker(self, sticker_name_or_id: str) -> Optional[Sticker]:
         if not sticker_name_or_id:
             return
 

@@ -109,6 +109,25 @@ class HTTP:
                 await asyncio.sleep(response_data["retry_after"])
                 return await self.request(route, headers=headers, data=data, params=params, files=files)
 
+    def get_application_emojis(self, application_id: str) -> Coroutine:
+        return self.request(Route("GET", "applications", application_id, "emojis"))
+    
+    def create_application_emoji(self, application_id: str, name: str, image: str) -> Coroutine:
+        return self.request(Route("POST", "applications", application_id, "emojis"), data={"name": name, "image": image})
+
+    def edit_application_emoji(self, application_id: str, emoji_id: str, *, name: Optional[str] = None, image: Optional[str] = None) -> Coroutine:
+        data = {}
+
+        if name is not None:
+            data["name"] = name
+        if image is not None:
+            data["image"] = image
+            
+        return self.request(Route("PATCH", "applications", application_id, "emojis", emoji_id), data=data)
+
+    def delete_application_emoji(self, application_id: str, emoji_id: str) -> Coroutine:
+        return self.request(Route("DELETE", "applications", application_id, "emojis", emoji_id))
+
     def start_typing(self, channel_id: str) -> Coroutine:
         return self.request(Route("POST", "channels", channel_id, "typing"))
 
