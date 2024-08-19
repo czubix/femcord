@@ -23,7 +23,7 @@ from ..http import Route
 
 from datetime import datetime
 
-from typing import List, Optional, Sequence, TYPE_CHECKING
+from typing import Type, Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -139,19 +139,19 @@ class Channel:
 
         return ctx.guild.get_channel(argument)
 
-    async def fetch_message(self, message_id: str) -> Union[dict, str]:
+    async def fetch_message(self, message_id: str) -> dict | str:
         return await self.__client.http.request(Route("GET", "channels", self.id, "messages", message_id))
 
-    async def start_typing(self) -> Union[dict, str]:
+    async def start_typing(self) -> dict | str:
         return await self.__client.http.start_typing(self.id)
 
-    async def send(self, content: Optional[str] = None, *, embed: Optional["Embed"] = None, embeds: Optional[Sequence["Embed"]] = None, components: Optional["Components"] = None, files: Optional[List[Union[str, bytes]]] = [], mentions: Optional[list] = [], stickers: Optional[List["Sticker"]] = None, other: Optional[dict] = {}) -> "Message":
+    async def send(self, content: Optional[str] = None, *, embed: Optional["Embed"] = None, embeds: Optional[Sequence["Embed"]] = None, components: Optional["Components"] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list["Sticker"]] = None, other: Optional[dict] = None) -> "Message":
         response = await self.__client.http.send_message(self.id, content, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, stickers=stickers, other=other)
 
         if response is not None:
             return await Message.from_raw(self.__client, response)
 
-    async def get_messages(self, *, around: Optional[int] = None, before: Optional[int] = None, after: Optional[int] = None, limit: Optional[int] = None) -> List["Message"]:
+    async def get_messages(self, *, around: Optional[int] = None, before: Optional[int] = None, after: Optional[int] = None, limit: Optional[int] = None) -> list["Message"]:
         response = await self.__client.http.get_messages(self.id, around=around, before=before, after=after, limit=limit)
 
         if response is not None:
@@ -169,7 +169,7 @@ class Channel:
 
         return message
 
-    async def purge(self, *, limit: Optional[int] = None, messages: Optional[Sequence[Union["Message", str]]] = [], key: Optional[Callable[["Message"], bool]] = None) -> List[dict]:
+    async def purge(self, *, limit: Optional[int] = None, messages: Optional[Sequence[Type["Message"] | str]] = [], key: Optional[Callable[["Message"], bool]] = None) -> list[dict]:
         if limit is not None:
             messages += [message for message in self.__client.gateway.messages if message.channel.id == self.id][-limit:]
 

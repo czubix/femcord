@@ -22,7 +22,7 @@ from .emoji import Emoji
 
 from datetime import datetime
 
-from typing import List, Sequence, Union, Optional, TYPE_CHECKING
+from typing import Sequence, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -45,7 +45,7 @@ class ActivityTimestamps:
 @dataclass
 class ActivityParty:
     id: str = None
-    size: List[int] = None
+    size: list[int] = None
 
 @dataclass
 class ActivityAssets:
@@ -82,7 +82,7 @@ class Activity:
     secrets: ActivitySecrets = None
     instance: bool = None
     flags: Sequence[ActivityFlags] = None
-    buttons: Union[List[ActivityButton], List[str]] = None
+    buttons: list[ActivityButton] | list[str] = None
 
     def __str__(self):
         return "<Activity name={!r} type={!r} details={!r} state={!r}>".format(self.name, self.type, self.details, self.state)

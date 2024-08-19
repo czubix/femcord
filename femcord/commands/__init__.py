@@ -15,9 +15,9 @@ limitations under the License.
 """
 
 from .bot import Bot
-from .context import Context
-from .extension import Command, Group, Listener, Cog
-from .core import command, group
+from .context import Context, AppContext
+from .extension import Command, Group, AppCommand, Listener, Cog
+from .core import command, group, app_command, hybrid_command
 from .enums import CommandTypes
 from .utils import check, is_owner, is_nsfw, has_permissions
 from .errors import *

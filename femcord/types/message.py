@@ -26,7 +26,7 @@ from .interaction import Interaction
 
 from datetime import datetime
 
-from typing import List, Optional, Sequence, Any, TYPE_CHECKING
+from typing import Optional, Sequence, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -98,7 +98,7 @@ class SelectOptions:
     @classmethod
     async def from_raw(cls, client, option):
         if "emoji" in option:
-            option["emoji"] = Emoji(**option["emoji"])
+            option["emoji"] = Emoji(self.__client, **option["emoji"])
 
         return cls(client, **option)
 
@@ -150,6 +150,20 @@ class MessageReaction:
         return cls(client, **reaction)
 
 @dataclass
+class MessageInteractionMetadata:
+    __client: "Client"
+    id: str
+    type: InteractionTypes
+    user: "User"
+
+    @classmethod
+    async def from_raw(cls, client, interaction_metadata):
+        interaction_metadata["type"] = InteractionTypes(interaction_metadata["type"])
+        interaction_metadata["user"] = await client.gateway.get_user(interaction_metadata["user"])
+
+        return cls(client, **interaction_metadata)
+
+@dataclass
 class Message:
     __client: "Client"
     id: str
@@ -177,7 +191,7 @@ class Message:
     message_reference: MessageReference = None
     referenced_message: "Message" = None
     message_snapshot: "Message" = None
-    interaction: Interaction = None
+    interaction_metadata: MessageInteractionMetadata = None
     thread: Channel = None
     application_id: str = None
 
@@ -247,14 +261,17 @@ class Message:
             message["embeds"] = [await Embed.from_raw(client, embed) for embed in message["embeds"]]
         if "flags" in message:
             message["flags"] = [flag for flag in MessageFlags if message["flags"] & flag.value == flag.value]
+        if "interaction_metadata" in message:
+            message["interaction_metadata"] = await MessageInteractionMetadata.from_raw(client, message["interaction_metadata"])
 
         return cls(client, **message)
 
-    async def reply(self, content: Optional[str] = None, *, embed: Optional["UserEmbed"] = None, embeds: Optional[Sequence["UserEmbed"]] = None, components: Optional["Components"] = None, files: Optional[List[Union[str, bytes]]] = None, mentions: Optional[list] = [], stickers: Optional[List["Sticker"]] = None, other: Optional[dict] = {}) -> "Message":
+    async def reply(self, content: Optional[str] = None, *, embed: Optional["UserEmbed"] = None, embeds: Optional[Sequence["UserEmbed"]] = None, components: Optional["Components"] = None, files: Optional[list[str | bytes]] = None, mentions: Optional[list] = [], stickers: Optional[list["Sticker"]] = None, other: Optional[dict] = None) -> "Message":
+        other = other or {}
         other["message_reference"] = {"guild_id": self.guild.id, "channel_id": self.channel.id, "message_id": self.id}
         return await self.channel.send(content, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, stickers=stickers, other=other)
 
-    async def edit(self, content: Optional[str] = None, *, embed: Optional["UserEmbed"] = None, embeds: Optional[Sequence["UserEmbed"]] = None, components: Optional["Components"] = None, files: Optional[List[Union[str, bytes]]] = None, mentions: Optional[list] = [], stickers: Optional[List["Sticker"]] = None, other: Optional[dict] = {}) -> "Message":
+    async def edit(self, content: Optional[str] = None, *, embed: Optional["UserEmbed"] = None, embeds: Optional[Sequence["UserEmbed"]] = None, components: Optional["Components"] = None, files: Optional[list[str | bytes]] = None, mentions: Optional[list] = [], stickers: Optional[list["Sticker"]] = None, other: Optional[dict] = None) -> "Message":
         channel_id = self.channel
 
         if isinstance(self.channel, Channel):
@@ -265,5 +282,5 @@ class Message:
         if response is not None:
             return await Message.from_raw(self.__client, response)
 
-    async def delete(self) -> Union[dict, str]:
+    async def delete(self) -> dict | str:
         return await self.__client.http.delete_message(self.channel.id, self.id)

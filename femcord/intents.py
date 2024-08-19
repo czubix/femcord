@@ -19,12 +19,10 @@ from .errors import IntentNotExist
 
 from functools import reduce
 
-from typing import Union
-
 __all__ = ("Intents",)
 
 class Intents:
-    def __init__(self, *intents: Union[IntentsEnum, str]) -> None:
+    def __init__(self, *intents: IntentsEnum | str) -> None:
         for intent in intents:
             self.check(intent)
 
@@ -36,7 +34,7 @@ class Intents:
     def __repr__(self) -> str:
         return "<Intents intents={!r} value={!r}>".format(self.intents, self.get_int())
 
-    def check(self, intent: Union[IntentsEnum, str]) -> IntentsEnum:
+    def check(self, intent: IntentsEnum | str) -> IntentsEnum:
         if not isinstance(intent, IntentsEnum) and intent in (i.name for i in IntentsEnum):
             intent = IntentsEnum[intent]
 
@@ -45,13 +43,13 @@ class Intents:
 
         return intent
 
-    def add(self, intent: Union[IntentsEnum, str]) -> "Intents":
+    def add(self, intent: IntentsEnum | str) -> "Intents":
         intent = self.check(intent)
         self.intents.append(intent)
 
         return self
 
-    def remove(self, intent: Union[IntentsEnum, str]) -> "Intents":
+    def remove(self, intent: IntentsEnum | str) -> "Intents":
         intent = self.check(intent)
         self.intents.remove(intent)
 
@@ -60,7 +58,7 @@ class Intents:
     def get_int(self) -> "Intents":
         return reduce(lambda a, b: a | b, [intent.value for intent in IntentsEnum if intent in self.intents])
 
-    def has(self, intent: Union[IntentsEnum, str]) -> bool:
+    def has(self, intent: IntentsEnum | str) -> bool:
         intent = self.check(intent)
 
         return intent in self.intents
@@ -74,5 +72,5 @@ class Intents:
         return cls(*(intent for intent in IntentsEnum if not intent in (IntentsEnum.GUILD_MEMBERS, IntentsEnum.GUILD_PRESENCES, IntentsEnum.GUILD_MESSAGES)))
 
     @classmethod
-    def from_int(cls, intents: Union[IntentsEnum, str]) -> "Intents":
+    def from_int(cls, intents: IntentsEnum | str) -> "Intents":
         return cls(*(intent for intent in IntentsEnum if intents & intent.value == intent.value))

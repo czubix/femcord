@@ -81,7 +81,6 @@ class Permissions(Enum):
     START_EMBEDDED_ACTIVITIES = 1 << 39
 
 class UserFlags(Enum):
-    NONE = 0
     STAFF = 1 << 0
     PARTNER = 1 << 1
     HYPESQUAD = 1 << 2
@@ -229,7 +228,7 @@ class InteractionCallbackTypes(Enum):
     APPLICATION_COMMAND_AUTOCOMPLETE_RESULT = 8
     MODAL = 9
 
-class CommandTypes(Enum):
+class ApplicationCommandTypes(Enum):
     CHAT_INPUT = 1
     USER = 2
     MESSAGE = 3
@@ -245,11 +244,13 @@ class CommandOptionTypes(Enum):
     ROLE = 8
     MENTIONABLE = 9
     NUMBER = 10
+    ATTACHMENT = 11
 
 class StickerFormatTypes(Enum):
     PNG = 1
     APNG = 2
     LOTTIE = 3
+    GIF = 4
 
 class StickerTypes(Enum):
     STANDARD = 1

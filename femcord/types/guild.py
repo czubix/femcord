@@ -30,7 +30,7 @@ from .member import Member
 
 from datetime import datetime
 
-from typing import List, Dict, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -47,7 +47,7 @@ class WelcomeScreenChannel:
     emoji_name: str
 
     @classmethod
-    async def from_raw(cls, client, channels: List[Channel], channel: Dict):
+    async def from_raw(cls, client, channels: list[Channel], channel: dict):
         channel["channel"] = [_channel := [_channel for _channel in channels if _channel.id == channel["channel_id"]], _channel if len(_channel) >= 1 else None][1]
 
         return cls(client, **channel)
@@ -56,10 +56,10 @@ class WelcomeScreenChannel:
 class WelcomeScreen:
     __client: "Client"
     description: str
-    welcome_channels: List[WelcomeScreenChannel]
+    welcome_channels: list[WelcomeScreenChannel]
 
     @classmethod
-    async def from_raw(cls, client, channels: List[Channel], welcomescreen: Dict):
+    async def from_raw(cls, client, channels: list[Channel], welcomescreen: dict):
         welcomescreen["welcome_channels"] = [await WelcomeScreenChannel.from_raw(client, channels, channel) for channel in welcomescreen["welcome_channels"]]
 
         return cls(client, **welcomescreen)
@@ -77,15 +77,15 @@ class Guild:
     verification_level: VerificationLevel
     default_message_notifications: DefaultMessageNotification
     explicit_content_filter: ExplicitContentFilter
-    roles: List[Role]
-    features: List[str]
+    roles: list[Role]
+    features: list[str]
     mfa_level: MfaLevel
     joined_at: datetime
     large: bool
     member_count: int
-    members: List[Member]
-    channels: List[Channel]
-    threads: List[Channel]
+    members: list[Member]
+    channels: list[Channel]
+    threads: list[Channel]
     description: str
     banner: str
     banner_url: str
@@ -93,7 +93,7 @@ class Guild:
     premium_subscription_count: int
     preferred_locale: str
     nsfw_level: NSFWLevel
-    stickers: List[Sticker]
+    stickers: list[Sticker]
     premium_progress_bar_enabled: bool
     created_at: datetime
     owner: Optional[Member] = None
@@ -102,7 +102,7 @@ class Guild:
     rules_channel: Optional[Channel] = None
     vanity_url: Optional[str] = None
     public_updates_channel: Optional[Channel] = None
-    emojis: Optional[List[Emoji]] = None
+    emojis: Optional[list[Emoji]] = None
     icon_hash: Optional[str] = None
     widget_enabled: Optional[bool] = None
     widget_channel: Optional[Channel] = None
@@ -144,7 +144,7 @@ class Guild:
         return "<Guild id={!r} name={!r} owner={!r}>".format(self.id, self.name, self.owner)
 
     @classmethod
-    async def from_raw(cls, client, guild: Dict) -> "Guild":
+    async def from_raw(cls, client, guild: dict) -> "Guild":
         icon_url = CDN_URL + "/icons/%s/%s.%s" % (guild["id"], guild["icon"], "gif" if guild["icon"] and guild["icon"][:2] == "a_" else "png")
         banner_url = CDN_URL + "/banners/%s/%s.%s" % (guild["id"], guild["banner"], "gif" if guild["banner"] and guild["banner"][:2] == "a_" else "png")
 
@@ -239,10 +239,10 @@ class Guild:
 
         return CDN_URL + "/banners/%s/%s.%s" % (self.id, self.banner, extension)
 
-    async def fetch_member(self, member_id: str) -> Dict[str, str]:
+    async def fetch_member(self, member_id: str) -> dict[str, str]:
         return await self.__client.http.request(Route("GET", "guilds", self.id, "members", member_id))
 
-    async def get_member(self, member: Union[dict, str], user: Optional[Union[User, dict]] = None) -> Member:
+    async def get_member(self, member: dict | str, user: Optional[User | dict] = None) -> Member:
         for cached_member in self.members:
             if isinstance(member, str):
                 if member.lower() in (cached_member.user.username.lower(), (cached_member.nick or "").lower(), cached_member.user.id):
@@ -273,8 +273,8 @@ class Guild:
 
         return member
 
-    async def ban(self, user: User, reason: Optional[str] = None, delete_message_seconds: Optional[int] = 0) -> Union[dict, str]:
+    async def ban(self, user: User, reason: Optional[str] = None, delete_message_seconds: Optional[int] = 0) -> dict | str:
         return await self.__client.http.ban_member(self.id, user.id, reason=reason, delete_message_seconds=delete_message_seconds)
 
-    async def unban(self, member_id: str, reason: Optional[str] = None) -> Union[dict, str]:
+    async def unban(self, member_id: str, reason: Optional[str] = None) -> dict | str:
         return await self.__client.http.unban_member(self.id, member_id, reason=reason)

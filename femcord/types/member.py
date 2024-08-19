@@ -21,18 +21,18 @@ from ..utils import *
 from ..permissions import Permissions
 
 from .channel import Channel
+from .presence import Presence, ClientStatus
 from .voice import VoiceState
 
 from datetime import datetime
 
-from typing import List, Optional, Sequence, TYPE_CHECKING
+from typing import Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
     from ..commands import Context
     from .user import User
     from .role import Role
-    from .presence import Presence
 
 @dataclass
 class Member:
@@ -41,6 +41,8 @@ class Member:
     roles: Sequence["Role"]
     permissions: Permissions
     joined_at: datetime
+    presence: Presence
+    voice_state: VoiceState
     guild_id: str
     deaf: bool = None
     mute: bool = None
@@ -51,8 +53,6 @@ class Member:
     is_pending: bool = None
     hoisted_role: "Role" = None
     communication_disabled_until: datetime = None
-    presence: "Presence" = None
-    voice_state: VoiceState = None
 
     def __str__(self):
         return "<Member user={!r} roles={!r} presence={!r}>".format(self.user, self.roles, self.presence)
@@ -80,6 +80,7 @@ class Member:
                     member["hoisted_role"] = role
                     break
 
+        member["presence"] = Presence(client, StatusTypes.OFFLINE, [], ClientStatus(client))
         member["voice_state"] = VoiceState(client, *[None] * 7)
 
         return cls(client, **member)
@@ -93,13 +94,13 @@ class Member:
 
         return ctx.guild.get_member(argument)
 
-    async def kick(self, reason: Optional[str] = None) -> Union[dict, str]:
+    async def kick(self, reason: Optional[str] = None) -> dict | str:
         return await self.__client.http.kick_member(self.guild_id, self.user.id, reason=reason)
 
-    async def ban(self, reason: Optional[str] = None, delete_message_seconds: Optional[int] = 0) -> Union[dict, str]:
+    async def ban(self, reason: Optional[str] = None, delete_message_seconds: Optional[int] = 0) -> dict | str:
         return await self.__client.http.ban_member(self.guild_id, self.user.id, reason=reason, delete_message_seconds=delete_message_seconds)
 
-    async def modify(self, *, nick: Optional[str] = None, roles: Optional[List["Role"]] = None, mute: Optional[bool] = None, deaf: Optional[bool] = None, channel: Optional[Channel] = None, communication_disabled_until: Optional[datetime] = None) -> Union[dict, str]:
+    async def modify(self, *, nick: Optional[str] = None, roles: Optional[list["Role"]] = None, mute: Optional[bool] = None, deaf: Optional[bool] = None, channel: Optional[Channel] = None, communication_disabled_until: Optional[datetime] = None) -> dict | str:
         if roles:
             roles = [role.id for role in roles]
         if channel:
@@ -109,8 +110,8 @@ class Member:
 
         return await self.__client.http.modify_member(self.guild_id, self.user.id, nick=nick, roles=roles, mute=mute, deaf=deaf, channel_id=channel, communication_disabled_until=communication_disabled_until)
 
-    async def add_role(self, role: "Role") -> Union[dict, str]:
+    async def add_role(self, role: "Role") -> dict | str:
         return await self.__client.http.add_role(self.guild_id, self.user.id, role.id)
 
-    async def remove_role(self, role: "Role") -> Union[dict, str]:
+    async def remove_role(self, role: "Role") -> dict | str:
         return await self.__client.http.remove_role(self.guild_id, self.user.id, role.id)

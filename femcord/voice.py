@@ -22,7 +22,7 @@ from .opus import Encoder, OPUS_SILENCE
 
 from .utils import MISSING
 
-from typing import List, Tuple, Union, Callable, Awaitable, Any, IO, TYPE_CHECKING
+from typing import Callable, Awaitable, Any, IO, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .client import Client
@@ -66,7 +66,7 @@ class SocketReader(threading.Thread):
 
         self._end = threading.Event()
 
-        self._callbacks: List[Callable[[bytes], Any]] = []
+        self._callbacks: list[Callable[[bytes], Any]] = []
 
     def register(self, callback: Callable[[bytes], Any]) -> None:
         self._callbacks.append(callback)
@@ -144,7 +144,7 @@ class VoiceWebSocket:
         self.sequence = 0
         self.timestamp = 0
 
-        self.address: Tuple[str, int] = MISSING
+        self.address: tuple[str, int] = MISSING
         self.ip: str = MISSING
         self.port: int = MISSING
 
@@ -161,7 +161,7 @@ class VoiceWebSocket:
 
         self.task = self.loop.create_task(self.run())
 
-    def send(self, opcode: Opcodes, data: Union[dict, float]) -> Awaitable[None]:
+    def send(self, opcode: Opcodes, data: dict | float) -> Awaitable[None]:
         return self.ws.send_json({"op": opcode.value, "d": data})
 
     def get_voice_packet(self, data: bytes) -> bytes:

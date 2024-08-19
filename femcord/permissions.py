@@ -19,12 +19,10 @@ from .errors import PermissionNotExist
 
 from functools import reduce
 
-from typing import Union
-
 __all__ = ("Permissions",)
 
 class Permissions:
-    def __init__(self, *permissions: Union[PermissionsEnum, str]) -> None:
+    def __init__(self, *permissions: PermissionsEnum | str) -> None:
         self.permissions = []
 
         for permission in permissions:

@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .extension import Command, Group
+from .extension import Command, Group, AppCommand
 
 from .enums import CommandTypes
 
 from typing import Callable
 
-def command(**kwargs) -> Callable:
-    def decorator(func) -> Command:
+def command(**kwargs) -> Callable[[Callable[..., None]], Command]:
+    def decorator(func: Callable[..., None]) -> Command:
         kwargs["type"] = CommandTypes.COMMAND
         kwargs["callback"] = func
 
@@ -29,11 +29,30 @@ def command(**kwargs) -> Callable:
 
     return decorator
 
-def group(**kwargs) -> Callable:
-    def decorator(func) -> Group:
+def group(**kwargs) -> Callable[[Callable[..., None]], Group]:
+    def decorator(func: Callable[..., None]) -> Group:
         kwargs["type"] = CommandTypes.GROUP
         kwargs["callback"] = func
 
         return Group(**kwargs)
+
+    return decorator
+
+def app_command(**kwargs) -> Callable[[Callable[..., None]], AppCommand]:
+    def decorator(func: Callable[..., None]) -> AppCommand:
+        kwargs["callback"] = func
+
+        return AppCommand(**kwargs)
+
+    return decorator
+
+def hybrid_command(**kwargs) -> Callable[[Callable[..., None]], tuple[Command, AppCommand]]:
+    def decorator(func: Callable[..., None]) -> tuple[Command, AppCommand]:
+        kwargs["callback"] = func
+
+        command = Command(**(kwargs | {"type": CommandTypes.COMMAND}))
+        app_command = AppCommand(**kwargs)
+
+        return command, app_command
 
     return decorator

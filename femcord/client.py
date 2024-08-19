@@ -20,42 +20,52 @@ from .gateway import Gateway
 from .http import HTTP
 from .intents import Intents
 from .types import *
+from .utils import MISSING
 
 from datetime import datetime
 
-from typing import List, Callable
+
+from typing import Callable, Optional
 
 class Client:
     def __init__(self, *, intents: Intents = Intents.default(), messages_limit: int = 1000, last_latencies_limit: int = 100) -> None:
         self.loop = asyncio.get_event_loop()
-        self.token: str = None
+        self.token: str = MISSING
+        self.bot: bool = MISSING
         self.intents = intents
-        self.http: HTTP = None
-        self.gateway: Gateway = None
-        self.listeners: List[Callable] = []
-        self.waiting_for: List[Callable] = []
-        self.messages_limit: int = messages_limit
+        self.http: HTTP = MISSING
+        self.gateway: Gateway = MISSING
+        self.listeners: list[Callable[..., None]] = []
+        self.waiting_for: list[tuple[str, asyncio.Future, Callable[..., bool]]] = []
+        self.messages_limit = messages_limit
         self.last_latencies_limit = last_latencies_limit
         self.started_at = datetime.now()
 
-    def event(self, function: Callable) -> None:
+    def event(self, function: Callable[..., None], *, name: Optional[str] = None) -> None:
+        if name:
+            event = function
+            def function(*args, **kwargs) -> None:
+                event(*args, **kwargs)
+            function.__name__ = name
         self.listeners.append(function)
 
-    async def wait_for(self, name: str, function: Callable, key: int, *, timeout: int = None, on_timeout: Callable = None) -> None:
-        self.waiting_for.append((name, function, key))
+    async def wait_for(self, event: str, check: Optional[Callable[..., bool]] = None, *, timeout: Optional[float] = None) -> asyncio.Future:
+        future = self.loop.create_future()
+        listener = event, future, check or (lambda *args: True)
+        self.waiting_for.append(listener)
 
         if timeout is not None:
-            await asyncio.sleep(timeout)
+            try:
+                return await asyncio.wait_for(future, timeout)
+            except TimeoutError as exc:
+                self.waiting_for.remove(listener)
+                raise
 
-            if (name, function, key) in self.waiting_for:
-                self.waiting_for.remove((name, function, key))
-
-                if on_timeout is not None:
-                    await on_timeout()
+        return await future
 
     def run(self, token: str, *, bot: bool = True) -> None:
-        self.token: str = token
-        self.bot: bool = bot
+        self.token = token
+        self.bot = bot
 
         self.loop.create_task(HTTP(self))
         self.loop.create_task(Gateway(self))

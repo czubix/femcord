@@ -16,28 +16,32 @@ limitations under the License.
 
 from .enums import CommandTypes
 
+from ..enums import ApplicationCommandTypes
+
 from ..utils import get_index
 
-from typing import Callable, List, Optional, TYPE_CHECKING
+from typing import Callable, Awaitable, Optional, Any, NoReturn, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from . import Context
+    from . import Context, AppContext
+
+Callback = Callable[..., Awaitable[None]]
 
 class Command:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         self.type: CommandTypes = kwargs["type"]
         self.parent: Optional[str] = kwargs.get("parent", None)
         self.cog: Optional[Cog] = kwargs.get("cog", None)
 
-        self.callback: Callable = kwargs["callback"]
+        self.callback: Callback = kwargs["callback"]
         self.name: str = kwargs.get("name") or self.callback.__name__
         self.description: Optional[str] = kwargs.get("description")
         self.usage: Optional[str] = kwargs.get("usage")
         self.enabled: bool = kwargs.get("enabled", True)
         self.hidden: bool = kwargs.get("hidden", False)
-        self.aliases: List[str] = kwargs.get("aliases", [])
+        self.aliases: list[str] = kwargs.get("aliases", [])
         self.guild_id: Optional[str] = kwargs.get("guild_id", None)
-        self.other: dict = kwargs.get("other", {})
+        self.other: dict[str, Any] = kwargs.get("other", {})
 
     async def __call__(self, context: "Context", *args, **kwargs) -> None:
         if self.cog is not None:
@@ -48,10 +52,10 @@ class Command:
 class Group(Command):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.subcommands: List[Command] = []
+        self.subcommands: list[Command] = []
 
     def command(self, **kwargs) -> Callable[..., Command]:
-        def decorator(func: Callable) -> Command:
+        def decorator(func: Callback) -> Command:
             kwargs["type"] = CommandTypes.SUBCOMMAND
             kwargs["parent"] = self.name
             kwargs["callback"] = func
@@ -64,7 +68,7 @@ class Group(Command):
         return decorator
 
     def group(self, **kwargs) -> Callable[..., "Group"]:
-        def decorator(func: Callable) -> "Group":
+        def decorator(func: Callback) -> "Group":
             kwargs["type"] = CommandTypes.GROUP
             kwargs["callback"] = func
 
@@ -88,7 +92,7 @@ class Group(Command):
 
         return self.subcommands[index]
 
-    def walk_subcommands(self) -> List[Command]:
+    def walk_subcommands(self) -> list[Command]:
         commands = []
 
         for command in self.subcommands:
@@ -99,11 +103,26 @@ class Group(Command):
 
         return commands
 
+class AppCommand:
+    def __init__(self, **kwargs) -> None:
+        self.cog: Optional[Cog] = kwargs.get("cog", None)
+
+        self.type: ApplicationCommandTypes = kwargs.get("type", ApplicationCommandTypes.CHAT_INPUT)
+        self.callback: Callback = kwargs["callback"]
+        self.name: str = kwargs.get("name") or self.callback.__name__
+        self.description: Optional[str] = kwargs.get("description")
+
+    async def __call__(self, context: "AppContext", *args, **kwargs) -> None:
+        if self.cog is not None:
+            return await self.callback(self.cog, context, *args, **kwargs)
+
+        return await self.callback(context, *args, **kwargs)
+
 class Listener:
-    def __init__(self, callback: Callable) -> None:
+    def __init__(self, callback: Callback, *, name: Optional[str] = None) -> None:
         self.callback = callback
         self.cog: Optional[Cog] = None
-        self.__name__ = callback.__name__
+        self.__name__ = name or callback.__name__
 
     def __str__(self) -> str:
         return f"{self.callback!r}"
@@ -121,8 +140,12 @@ class Cog:
     name: str
     description: Optional[str]
     hidden: bool
-    listeners: List[Listener]
-    commands: List[Command]
+    listeners: list[Listener]
+    commands: list[Command]
+    app_commands: list[AppCommand]
+
+    def __init__(self) -> NoReturn:
+        raise NotImplementedError
 
     def on_load(self) -> None:
         pass
@@ -130,7 +153,7 @@ class Cog:
     def on_unload(self) -> None:
         pass
 
-    def walk_commands(self) -> List[Command]:
+    def walk_commands(self) -> list[Command]:
         commands = []
 
         for command in self.commands:

@@ -26,7 +26,7 @@ from .errors import *
 
 import json, logging
 
-from typing import Optional, List, Dict, Sequence, Union, Coroutine
+from typing import Optional, Sequence, Awaitable
 
 class Route:
     def __init__(self, method: str, *endpoint: str) -> None:
@@ -57,18 +57,8 @@ class HTTP:
         self.session: ClientSession = ClientSession(loop=self.loop)
         self.token: str = client.token
         self.bot: bool = client.bot
-        self.ratelimits: Dict[Route, List[int, int]] = {}
 
-    async def request(self, route: Route, *, headers: Optional[dict] = {}, data: Optional[dict] = None, params: Optional[dict] = None, files: Optional[List[Union[str, bytes]]] = None) -> Union[dict, str]:
-        # for ratelimit in self.ratelimits:
-        #     if ratelimit == route:
-        #         ratelimit[1] += 1
-        #         await asyncio.sleep(ratelimit[0] * ratelimit[1])
-        #         ratelimit[1] -= 1
-
-        #         if ratelimit[1] == 0:
-        #             self.ratelimits.pop(ratelimit)
-
+    async def request(self, route: Route, *, headers: Optional[dict] = {}, data: Optional[dict] = None, params: Optional[dict] = None, files: Optional[list[str | bytes]] = None) -> dict | str:
         headers.update({"authorization": ("Bot " if self.bot is True else "") + self.token, "user-agent": "femcord"})
 
         kwargs = dict(json=data)
@@ -105,33 +95,34 @@ class HTTP:
                 raise HTTPException(message, response.status, response_data)
 
             elif response.status == 429:
-                # self.ratelimits[route] = [response_data["retry_after"], 1]
                 await asyncio.sleep(response_data["retry_after"])
                 return await self.request(route, headers=headers, data=data, params=params, files=files)
 
-    def get_application_emojis(self, application_id: str) -> Coroutine:
+    def get_application_emojis(self, application_id: str) -> Awaitable[dict]:
         return self.request(Route("GET", "applications", application_id, "emojis"))
-    
-    def create_application_emoji(self, application_id: str, name: str, image: str) -> Coroutine:
+
+    def create_application_emoji(self, application_id: str, name: str, image: str) -> Awaitable[dict]:
         return self.request(Route("POST", "applications", application_id, "emojis"), data={"name": name, "image": image})
 
-    def edit_application_emoji(self, application_id: str, emoji_id: str, *, name: Optional[str] = None, image: Optional[str] = None) -> Coroutine:
+    def edit_application_emoji(self, application_id: str, emoji_id: str, *, name: Optional[str] = None, image: Optional[str] = None) -> Awaitable[dict]:
         data = {}
 
         if name is not None:
             data["name"] = name
         if image is not None:
             data["image"] = image
-            
+
         return self.request(Route("PATCH", "applications", application_id, "emojis", emoji_id), data=data)
 
-    def delete_application_emoji(self, application_id: str, emoji_id: str) -> Coroutine:
+    def delete_application_emoji(self, application_id: str, emoji_id: str) -> Awaitable[dict]:
         return self.request(Route("DELETE", "applications", application_id, "emojis", emoji_id))
 
-    def start_typing(self, channel_id: str) -> Coroutine:
+    def start_typing(self, channel_id: str) -> Awaitable[dict]:
         return self.request(Route("POST", "channels", channel_id, "typing"))
 
-    def send_message(self, channel_id: str, content: Optional[str] = None, *, embed: Optional[Embed] = None, embeds: Optional[Sequence[Embed]] = None, components: Optional[Components] = None, files: Optional[List[Union[str, bytes]]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, other: Optional[dict] = {}) -> Coroutine:
+    def send_message(self, channel_id: str, content: Optional[str] = None, *, embed: Optional[Embed] = None, embeds: Optional[Sequence[Embed]] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, other: Optional[dict] = None) -> Awaitable[dict]:
+        other = other or {}
+
         data = {**other, "allowed_mentions": {"parse": mentions, "users": [], "replied_user": False}}
 
         if content is not None:
@@ -158,7 +149,9 @@ class HTTP:
 
         return self.request(Route("POST", "channels", channel_id, "messages"), data=data, files=files)
 
-    def edit_message(self, channel_id: str, message_id: str, content: Optional[str] = None, *, embed: Optional[Embed] = None, embeds: Optional[Sequence[Embed]] = None, components: Optional[Components] = None, files: Optional[List[Union[str, bytes]]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, other: Optional[dict] = {}) -> Coroutine:
+    def edit_message(self, channel_id: str, message_id: str, content: Optional[str] = None, *, embed: Optional[Embed] = None, embeds: Optional[Sequence[Embed]] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, other: Optional[dict] = None) -> Awaitable[dict]:
+        other = other or {}
+
         data = {**other, "allowed_mentions": {"parse": mentions, "users": [], "replied_user": False}}
 
         if content is not None:
@@ -185,10 +178,12 @@ class HTTP:
 
         return self.request(Route("PATCH", "channels", channel_id, "messages", message_id), data=data, files=files)
 
-    def delete_message(self, channel_id: str, message_id: str) -> Coroutine:
+    def delete_message(self, channel_id: str, message_id: str) -> Awaitable[dict]:
         return self.request(Route("DELETE", "channels", channel_id, "messages", message_id))
 
-    def interaction_callback(self, interaction_id: str, interaction_token: str, interaction_type: InteractionCallbackTypes, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: str = None, embed: Embed = None, embeds: Sequence[Embed] = None, components: Optional[Components] = None, files: Optional[List[Union[str, bytes]]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, flags: Optional[List[MessageFlags]] = None, other: Optional[dict] = {}) -> Coroutine:
+    def interaction_callback(self, interaction_id: str, interaction_token: str, interaction_type: InteractionCallbackTypes, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: str = None, embed: Embed = None, embeds: Sequence[Embed] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> Awaitable[dict]:
+        other = other or {}
+
         if flags:
             other["flags"] = 0
 
@@ -223,11 +218,96 @@ class HTTP:
             data["data"]["components"] = getattr(components, "components", components)
 
         if stickers is not None:
-            data["sticker_ids"] = [sticker.id for sticker in stickers]
+            data["data"]["sticker_ids"] = [sticker.id for sticker in stickers]
 
         return self.request(Route("POST", "interactions", interaction_id, interaction_token, "callback"), data=data, files=files)
 
-    def kick_member(self, guild_id: str, member_id: str, reason: Optional[str] = None) -> Coroutine:
+    def interaction_edit(self, application_id: str, interaction_token: str, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: str = None, embed: Embed = None, embeds: Sequence[Embed] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> Awaitable[dict]:
+        other = other or {}
+
+        if flags:
+            other["flags"] = 0
+
+            for flag in flags:
+                other["flags"] |= flag.value
+
+        data = {**other, "allowed_mentions": {"parse": mentions, "users": [], "replied_user": False}}
+
+        if content is not None:
+            data["content"] = str(content)
+
+        if title is not None:
+            data["title"] = title
+
+        if custom_id is not None:
+            data["custom_id"] = custom_id
+
+        if embed is not None and isinstance(embed, Embed):
+            data["embeds"] = []
+
+            if embed.__dict__:
+                data["embeds"].append(embed.__dict__)
+
+        if embeds is not None:
+            data["embeds"] = []
+
+            for embed in embeds:
+                if embed.__dict__:
+                    data["embeds"].append(embed.__dict__)
+
+        if components is not None:
+            data["components"] = getattr(components, "components", components)
+
+        if stickers is not None:
+            data["sticker_ids"] = [sticker.id for sticker in stickers]
+
+        return self.request(Route("PATCH", "webhooks", application_id, interaction_token, "messages", "@original"), data=data, files=files)
+
+    def interaction_delete(self, application_id: str, interaction_token: str) -> Awaitable[dict]:
+        return self.request(Route("DELETE", "webhooks", application_id, interaction_token, "messages", "@original"))
+
+    def send_followup(self, application_id: str, interaction_token: str, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: str = None, embed: Embed = None, embeds: Sequence[Embed] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> Awaitable[dict]:
+        other = other or {}
+
+        if flags:
+            other["flags"] = 0
+
+            for flag in flags:
+                other["flags"] |= flag.value
+
+        data = {**other, "allowed_mentions": {"parse": mentions, "users": [], "replied_user": False}}
+
+        if content is not None:
+            data["content"] = str(content)
+
+        if title is not None:
+            data["title"] = title
+
+        if custom_id is not None:
+            data["custom_id"] = custom_id
+
+        if embed is not None and isinstance(embed, Embed):
+            data["embeds"] = []
+
+            if embed.__dict__:
+                data["embeds"].append(embed.__dict__)
+
+        if embeds is not None:
+            data["embeds"] = []
+
+            for embed in embeds:
+                if embed.__dict__:
+                    data["embeds"].append(embed.__dict__)
+
+        if components is not None:
+            data["components"] = getattr(components, "components", components)
+
+        if stickers is not None:
+            data["sticker_ids"] = [sticker.id for sticker in stickers]
+
+        return self.request(Route("POST", "webhooks", application_id, interaction_token), data=data, files=files)
+
+    def kick_member(self, guild_id: str, member_id: str, reason: Optional[str] = None) -> Awaitable[dict]:
         headers = {}
 
         if reason is not None:
@@ -235,7 +315,7 @@ class HTTP:
 
         return self.request(Route("DELETE", "guilds", guild_id, "members", member_id), headers=headers)
 
-    def ban_member(self, guild_id: str, member_id: str, reason: Optional[str] = None, delete_message_seconds: Optional[int] = 0) -> Coroutine:
+    def ban_member(self, guild_id: str, member_id: str, reason: Optional[str] = None, delete_message_seconds: Optional[int] = 0) -> Awaitable[dict]:
         headers = {}
 
         if reason is not None:
@@ -243,7 +323,7 @@ class HTTP:
 
         return self.request(Route("PUT", "guilds", guild_id, "bans", member_id), headers=headers, data={"delete_message_seconds": delete_message_seconds})
 
-    def unban_member(self, guild_id: str, member_id: str, reason: Optional[str] = None) -> Coroutine:
+    def unban_member(self, guild_id: str, member_id: str, reason: Optional[str] = None) -> Awaitable[dict]:
         headers = {}
 
         if reason is not None:
@@ -251,7 +331,7 @@ class HTTP:
 
         return self.request(Route("DELETE", "guilds", guild_id, "bans", member_id), headers=headers)
 
-    def modify_member(self, guild_id: str, member_id: str, *, nick: Optional[str] = None, roles: Optional[List[str]] = None, mute: Optional[bool] = None, deaf: Optional[bool] = None, channel_id: Optional[str] = None, communication_disabled_until: Optional[int] = None) -> Coroutine:
+    def modify_member(self, guild_id: str, member_id: str, *, nick: Optional[str] = None, roles: Optional[list[str]] = None, mute: Optional[bool] = None, deaf: Optional[bool] = None, channel_id: Optional[str] = None, communication_disabled_until: Optional[int] = None) -> Awaitable[dict]:
         data = {"nick": nick}
 
         if roles:
@@ -267,13 +347,13 @@ class HTTP:
 
         return self.request(Route("PATCH", "guilds", guild_id, "members", member_id), data=data)
 
-    def add_role(self, guild_id: str, member_id: str, role_id: str) -> Coroutine:
+    def add_role(self, guild_id: str, member_id: str, role_id: str) -> Awaitable[dict]:
         return self.request(Route("PUT", "guilds", guild_id, "members", member_id, "roles", role_id))
 
-    def remove_role(self, guild_id: str, member_id: str, role_id: str) -> Coroutine:
+    def remove_role(self, guild_id: str, member_id: str, role_id: str) -> Awaitable[dict]:
         return self.request(Route("DELETE", "guilds", guild_id, "members", member_id, "roles", role_id))
 
-    def get_messages(self, channel_id: str, *, around: Optional[str] = None, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[str] = None) -> Coroutine:
+    def get_messages(self, channel_id: str, *, around: Optional[str] = None, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[str] = None) -> Awaitable[dict]:
         params = {}
 
         if around is not None:
@@ -287,8 +367,8 @@ class HTTP:
 
         return self.request(Route("GET", "channels", channel_id, "messages"), params=params)
 
-    def purge_channel(self, channel_id: str, messages: str) -> Coroutine:
+    def purge_channel(self, channel_id: str, messages: str) -> Awaitable[dict]:
         return self.request(Route("POST", "channels", channel_id, "messages", "bulk-delete"), data={"messages": messages})
 
-    def open_dm(self, user_id: str) -> Coroutine:
+    def open_dm(self, user_id: str) -> Awaitable[dict]:
         return self.request(Route("POST", "users", "@me", "channels"), data={"recipient_id": user_id})

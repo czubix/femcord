@@ -16,10 +16,10 @@ limitations under the License.
 
 from datetime import datetime, timedelta
 
-from typing import Optional, Union
+from typing import Optional
 
 class Embed:
-    def __init__(self, *, title: Optional[str] = None, url: Optional[str] = None, description: Optional[str] = None, color: Optional[int] = None, timestamp: Optional[Union[datetime, float, int]] = None):
+    def __init__(self, *, title: Optional[str] = None, url: Optional[str] = None, description: Optional[str] = None, color: Optional[int] = None, timestamp: Optional[datetime | float | int] = None):
         if title is not None:
             self.title = title
         if url is not None:
@@ -65,7 +65,7 @@ class Embed:
 
         return self
 
-    def set_timestamp(self, timestamp: Union[datetime, float, int]) -> "Embed":
+    def set_timestamp(self, timestamp: datetime | float | int) -> "Embed":
         if isinstance(timestamp, (float, int)):
             timestamp = datetime.fromtimestamp(timestamp)
         self.timestamp = (timestamp - timedelta(hours=1)).isoformat()

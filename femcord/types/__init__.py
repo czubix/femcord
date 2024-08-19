@@ -21,7 +21,7 @@ from .guild import Guild, WelcomeScreenChannel, WelcomeScreen
 from .interaction import InteractionDataOption, InteractionData, Interaction
 from .member import Member
 from .presence import ActivityTimestamps, ActivityParty, ActivityAssets, ActivitySecrets, ActivityButton, Activity, ClientStatus, Presence
-from .message import Attachment, MessageReference, MessageSticker, SelectOptions, MessageComponents, MessageReaction, Message
+from .message import Attachment, MessageReference, MessageSticker, SelectOptions, MessageComponents, MessageReaction, MessageInteractionMetadata, Message
 from .role import Role
 from .sticker import Sticker
 from .user import User

@@ -25,7 +25,7 @@ from .message import Message
 
 from datetime import datetime
 
-from typing import List, Optional, Sequence, TYPE_CHECKING
+from typing import Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -113,7 +113,7 @@ class User:
 
         return ctx.bot.gateway.get_user(argument)
 
-    async def send(self, content: Optional[str] = None, *, embed: Optional["Embed"] = None, embeds: Optional[Sequence["Embed"]] = None, components: Optional["Components"] = None, files: Optional[List[Union[str, bytes]]] = [], mentions: Optional[list] = [], other: Optional[dict] = {}) -> Message:
+    async def send(self, content: Optional[str] = None, *, embed: Optional["Embed"] = None, embeds: Optional[Sequence["Embed"]] = None, components: Optional["Components"] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], other: Optional[dict] = {}) -> Message:
         if self.dm is None:
             response = await self.__client.http.open_dm(self.id)
             self.dm = await Channel.from_raw(self.__client, response)

@@ -14,33 +14,36 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .extension import Command
+from .extension import Command, AppCommand
 
-from typing import List, TYPE_CHECKING
+from ..enums import InteractionCallbackTypes
+from ..utils import MISSING
+
+from typing import Union, Optional, Any, Awaitable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .bot import Bot
-    from ..types import Guild, Channel, Member, User, Message
+    from ..types import Message, Interaction, User, Channel, Role
 
 class Context:
     def __init__(self, bot: "Bot", message: "Message") -> None:
-        self.bot: "Bot" = bot
-        self.bot_user: User = self.bot.gateway.bot_user
+        self.bot = bot
+        self.bot_user = self.bot.gateway.bot_user
 
-        self.guild: Guild = message.guild
-        self.channel: Channel = message.channel or message.thread
+        self.guild = message.guild
+        self.channel = message.channel or message.thread
 
         if isinstance(self.channel, str):
             self.channel = self.guild.get_channel(self.channel)
 
-        self.message: "Message" = message
+        self.message = message
 
-        self.author: "User" = message.author
-        self.member: "Member" = message.member
+        self.author = message.author
+        self.member = message.member
 
-        self.command: Command = None
-        self.arguments: List[str] = []
-        self.error: Exception = None
+        self.command: Command = MISSING
+        self.arguments: list[Any] = []
+        self.error: Optional[Exception] = None
 
         self.send = self.channel.send
         self.reply = self.message.reply
@@ -50,3 +53,48 @@ class Context:
 
     def __repr__(self) -> None:
         return "<Context guild={!r} channel={!r} message={!r} command={!r} arguments={!r}>".format(self.guild, self.channel, self.message, self.command, self.arguments)
+
+class AppContext:
+    def __init__(self, bot: "Bot", interaction: "Interaction", command: "AppCommand") -> None:
+        self.bot = bot
+        self.bot_user = bot.gateway.bot_user
+
+        self.interaction = interaction
+
+        self.guild = interaction.guild
+        self.channel = interaction.channel
+
+        self.message = None
+
+        self.author = interaction.user or interaction.member.user
+        self.member = interaction.member
+
+        self.command = command
+        self.arguments: list[Union["User", "Channel", "Role", str, float, int, bool]] = []
+        self.error: Exception = MISSING
+
+        self.replied = False
+        self.to_edit = False
+
+        self.reply = self.send
+        self.edit = self.interaction.edit
+
+    def __str__(self) -> None:
+        return "<AppContext guild={!r} channel={!r} interaction={!r}>".format(self.guild, self.channel, self.interaction)
+
+    def __repr__(self) -> None:
+        return "<AppContext guild={!r} channel={!r} interaction={!r}>".format(self.guild, self.channel, self.interaction)
+
+    def think(self) -> Awaitable[None]:
+        self.to_edit = True
+        return self.interaction.callback(InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE)
+
+    def send(self, *args, **kwargs) -> Awaitable[None]:
+        if self.to_edit:
+            self.to_edit = False
+            self.replied = True
+            return self.edit(*args, **kwargs)
+        if self.replied:
+            return self.interaction.send(*args, **kwargs)
+        self.replied = True
+        return self.interaction.callback(InteractionCallbackTypes.CHANNEL_MESSAGE_WITH_SOURCE, *args, **kwargs)

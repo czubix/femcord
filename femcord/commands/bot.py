@@ -15,48 +15,65 @@ limitations under the License.
 """
 
 from ..client import Client
+from ..http import Route
 from ..intents import Intents
+from ..types import User, Channel, Role
 from ..errors import InvalidArgument
+from ..enums import ApplicationCommandTypes, InteractionTypes, CommandOptionTypes
 from ..utils import get_index
 
-from .extension import Cog, Command, Group, Listener
+from .extension import Cog, Command, Group, AppCommand, Listener
 from .enums import CommandTypes
-from .context import Context
+from .context import Context, AppContext
 
 from .errors import *
 
 from dataclasses import is_dataclass
-from types import CoroutineType, ModuleType
+from types import CoroutineType, ModuleType, UnionType
 
 import importlib.util, inspect, traceback, sys
 
-from typing import Callable, Union, Optional, Iterable, List, Any
+from typing import Callable, Awaitable, Optional, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..types import Message, Interaction
+
+BeforeAfterFunction = Callable[[Context | AppContext], Awaitable[None]]
 
 class Bot(Client):
-    def __init__(self, *, name: Optional[str] = None, command_prefix: Union[Callable, str], intents: Intents = Intents.all(), messages_limit: int = 1000, owners: Iterable[str] = [], context: Context = None) -> None:
-        super().__init__(intents=intents, messages_limit=messages_limit)
+    def __init__(self, *, name: Optional[str] = None, command_prefix: Callable[["Message"], Awaitable[str]] | str, intents: Optional[Intents] = None, messages_limit: int = 1000, owners: Optional[tuple[str] | list[str]] = None, context: Optional[Context] = None, app_context: Optional[AppContext] = None) -> None:
+        super().__init__(intents=intents or Intents.all(), messages_limit=messages_limit)
 
         self.name = name
-        self.owners = list(owners)
+        self.owners = list(owners) or []
         self.original_prefix = self.command_prefix = command_prefix
 
         self.context = context or Context
+        self.app_context = app_context or AppContext
 
         if not callable(self.command_prefix):
             async def command_prefix(self, _):
                 return self.original_prefix
 
-            self.command_prefix: Callable = command_prefix
+            self.command_prefix = command_prefix
 
-        self.extensions: List[ModuleType] = []
-        self.cogs: List[Cog] = []
-        self.commands: List[Command] = []
+        self.extensions: list[ModuleType] = []
+        self.cogs: list[Cog] = []
+        self.commands: list[Command] = []
+        self.app_commands: list[AppCommand] = []
 
-        self.before_call_functions: List[Callable] = []
-        self.after_call_functions: List[Callable] = []
+        self.before_call_functions: list[BeforeAfterFunction] = []
+        self.after_call_functions: list[BeforeAfterFunction] = []
 
         @self.event
-        async def on_message_create(message) -> None:
+        async def on_interaction_create(interaction: "Interaction") -> None:
+            if interaction.type is not InteractionTypes.APPLICATION_COMMAND:
+                return
+
+            await self.process_interaction_commands(interaction)
+
+        @self.event
+        async def on_message_create(message: "Message") -> None:
             if message.author.bot:
                 return
 
@@ -68,14 +85,77 @@ class Bot(Client):
     def __repr__(self) -> str:
         return f"<Bot name={str(self)!r}>"
 
-    def before_call(self, func) -> None:
+    def before_call(self, func: BeforeAfterFunction) -> None:
         self.before_call_functions.append(func)
 
-    def after_call(self, func) -> None:
+    def after_call(self, func: BeforeAfterFunction) -> None:
         self.after_call_functions.append(func)
 
-    def command(self, **kwargs) -> Callable[..., Command]:
-        def decorator(func):
+    async def register_app_commands(self) -> None:
+        commands = []
+
+        types = {
+            str: CommandOptionTypes.STRING,
+            int: CommandOptionTypes.INTEGER,
+            float: CommandOptionTypes.NUMBER,
+            bool: CommandOptionTypes.BOOLEAN,
+            User: CommandOptionTypes.USER,
+            Channel: CommandOptionTypes.CHANNEL,
+            Role: CommandOptionTypes.ROLE,
+            inspect._empty: CommandOptionTypes.STRING
+        }
+
+        def get_type(_type: User | Channel | Role | str | int | float | bool | UnionType) -> CommandOptionTypes:
+            if _type in types:
+                return types[_type]
+
+            if isinstance(_type, UnionType):
+                for _type in _type.__args__:
+                    if _type in types:
+                        return types[_type]
+
+            raise TypeError(f"'{_type}' type is not supported")
+
+        for command in self.app_commands:
+            skip_arguments = 1
+
+            if command.cog is not None:
+                skip_arguments += 1
+
+            command_arguments = []
+
+            if command.type is ApplicationCommandTypes.CHAT_INPUT:
+                command_arguments = list(inspect.signature(command.callback).parameters.values())[skip_arguments:]
+
+            commands.append({
+                "type": command.type.value,
+                "name": command.name,
+                **(
+                    {
+                        "description": command.description or command.name
+                    }
+                    if command.type is ApplicationCommandTypes.CHAT_INPUT else
+                    {
+
+                    }
+                ),
+                "options": [
+                    {
+                        "type": get_type(argument.annotation).value,
+                        "name": argument.name,
+                        "description": argument.name,
+                        "required": argument.default == argument.empty
+                    }
+                    for argument in command_arguments
+                ],
+                "integration_types": [0, 1],
+                "contexts": [0, 1, 2]
+            })
+
+        await self.http.request(Route("PUT", "applications", self.gateway.bot_user.id, "commands"), data=commands)
+
+    def command(self, **kwargs) -> Callable[[Callable[..., None]], Command]:
+        def decorator(func: Callable[..., None]) -> Command:
             kwargs["type"] = CommandTypes.COMMAND
             kwargs["callback"] = func
 
@@ -86,8 +166,8 @@ class Bot(Client):
 
         return decorator
 
-    def group(self, **kwargs) -> Callable[..., Group]:
-        def decorator(func):
+    def group(self, **kwargs) -> Callable[[Callable[..., None]], Group]:
+        def decorator(func: Callable[..., None]) -> Group:
             kwargs["type"] = CommandTypes.GROUP
             kwargs["callback"] = func
 
@@ -98,7 +178,32 @@ class Bot(Client):
 
         return decorator
 
-    def get_command(self, command: Command, guild_id: Optional[str] = None) -> Optional[Union[Command, Group]]:
+    def app_command(self, **kwargs) -> Callable[[Callable[..., None]], AppCommand]:
+        def decorator(func: Callable[..., None]) -> AppCommand:
+            kwargs["callback"] = func
+
+            command = AppCommand(**kwargs)
+            self.app_commands.append(command)
+
+            return command
+
+        return decorator
+
+    def hybrid_command(self, **kwargs) -> Callable[[Callable[..., None]], tuple[Command, AppCommand]]:
+        def decorator(func: Callable[..., None]) -> tuple[Command, AppCommand]:
+            kwargs["callback"] = func
+
+            command = Command(**(kwargs | {"type": CommandTypes.COMMAND}))
+            app_command = AppCommand(**kwargs)
+
+            self.commands.append(command)
+            self.app_commands.append(app_command)
+
+            return command, app_command
+
+        return decorator
+
+    def get_command(self, command: str, *, guild_id: Optional[str] = None) -> Optional[Command | Group]:
         commands = self.commands
 
         if guild_id is not None:
@@ -116,7 +221,15 @@ class Bot(Client):
 
         return commands[index]
 
-    def remove_command(self, command: Union[Command, str]) -> None:
+    def get_app_command(self, command: str) -> Optional[AppCommand]:
+        index = get_index(self.app_commands, command, key=lambda command: command.name)
+
+        if index is None:
+            return
+
+        return self.app_commands[index]
+
+    def remove_command(self, command: Command | str) -> None:
         if isinstance(command, str):
             index = get_index(self.commands, command, key=lambda command: command.name)
 
@@ -130,7 +243,21 @@ class Bot(Client):
 
         self.commands.remove(command)
 
-    def walk_commands(self) -> List[Command]:
+    def remove_app_command(self, command: AppCommand | str) -> None:
+        if isinstance(command, str):
+            index = get_index(self.app_commands, command, key=lambda command: command.name)
+
+            if index is None:
+                raise CommandNotFound(command)
+
+            command = self.app_commands[index]
+
+        if command.cog is not None:
+            command.cog.app_commands.remove(command)
+
+        self.app_commands.remove(command)
+
+    def walk_commands(self) -> list[Command]:
         commands = []
 
         for command in self.commands:
@@ -149,16 +276,32 @@ class Bot(Client):
         cog.description = getattr(cog, "description", None)
         cog.hidden = getattr(cog, "hidden", False)
 
-        cog.commands = [getattr(cog, command) for command in dir(cog) if isinstance(getattr(cog, command), Command)]
-        cog.listeners = [getattr(cog, listener) for listener in dir(cog) if isinstance(getattr(cog, listener), Listener)]
+        cog.commands = []
+        cog.app_commands = []
+        cog.listeners = []
 
-        for command in cog.commands:
+        for attr in dir(cog):
+            attr = getattr(cog, attr)
+
+            if isinstance(attr, Command):
+                cog.commands.append(attr)
+            elif isinstance(attr, AppCommand):
+                cog.app_commands.append(attr)
+            elif isinstance(attr, Listener):
+                cog.listeners.append(attr)
+            elif isinstance(attr, tuple):
+                if len(attr) == 2 and isinstance(attr[0], Command) and isinstance(attr[1], AppCommand):
+                    cog.commands.append(attr[0])
+                    cog.app_commands.append(attr[1])
+
+        for command in cog.commands + cog.app_commands:
             command.cog = cog
 
         for listener in cog.listeners:
             listener.cog = cog
 
         self.commands += [command for command in cog.commands if not command.type == CommandTypes.SUBCOMMAND]
+        self.app_commands += cog.app_commands
         self.listeners += cog.listeners
 
         self.cogs.append(cog)
@@ -173,7 +316,7 @@ class Bot(Client):
 
         return self.cogs[index]
 
-    def unload_cog(self, cog: Union[Cog, str]) -> None:
+    def unload_cog(self, cog: Cog | str) -> None:
         if isinstance(cog, str):
             index = get_index(self.cogs, cog, key=lambda cog: cog.__class__.__name__)
 
@@ -237,27 +380,62 @@ class Bot(Client):
         del sys.modules[name]
         del self.extensions[index]
 
-    async def process_commands(self, message, *, before_call_functions: Union[list, Callable] = [], after_call_functions: Union[list, Callable] = []):
-        if isinstance(before_call_functions, Callable):
+    async def process_interaction_commands(self, interaction: "Interaction") -> None:
+        on_error = "on_error" in (listener.__name__ for listener in self.listeners)
+
+        command = self.get_app_command(interaction.data.name)
+
+        if not command:
+            return
+
+        context = self.app_context(self, interaction, command)
+
+        args = []
+        kwargs = {}
+
+        if interaction.data.type is not ApplicationCommandTypes.CHAT_INPUT:
+            args.append(interaction.data.target)
+
+        if interaction.data.options:
+            for option in interaction.data.options:
+                kwargs[option.name] = option.value
+
+        context.arguments = list(kwargs.values())
+
+        async def run_command():
+            try:
+                await command(context, *args, **kwargs)
+            except Exception as error:
+                context.error = error
+
+                if not on_error:
+                    return traceback.print_exc()
+
+                await self.gateway.dispatch("error", context, error)
+
+        self.loop.create_task(run_command())
+
+    async def process_commands(self, message: "Message", *, before_call_functions: list | BeforeAfterFunction = [], after_call_functions: list | BeforeAfterFunction = []) -> None:
+        if callable(before_call_functions):
             before_call_functions = [before_call_functions]
-        if isinstance(after_call_functions, Callable):
+        if callable(after_call_functions):
             after_call_functions = [after_call_functions]
 
         prefixes = prefix = await self.command_prefix(self, message)
 
         if not isinstance(prefix, str):
             for _prefix in prefixes:
-                if len(message.content) > len(_prefix) and message.content[0:len(_prefix)] == _prefix:
+                if len(message.content) > len(_prefix) and message.content[:len(_prefix)] == _prefix:
                     prefix = _prefix
 
-        if not (len(message.content) > len(prefix) and message.content[0:len(prefix)] == prefix): return
+        if not (len(message.content) > len(prefix) and message.content[:len(prefix)] == prefix):
+            return
 
-        on_error = True if "on_error" in (listener.__name__ for listener in self.listeners) else False
+        on_error = "on_error" in (listener.__name__ for listener in self.listeners)
 
-        content_split = message.content[len(prefix):].split(" ")
-
-        command = content_split[0]
-        arguments = content_split[1:]
+        command, *arguments = message.content[len(prefix):].split(maxsplit=1)
+        if arguments:
+            arguments = arguments[0].split(" ")
 
         context = self.context(self, message)
 
@@ -311,7 +489,7 @@ class Bot(Client):
         for index, command_argument in enumerate(command_arguments):
             annotations = [command_argument.annotation]
 
-            if hasattr(annotations[0], "__origin__") and annotations[0].__origin__ == Union:
+            if isinstance(annotations[0], UnionType):
                 annotations = annotations[0].__args__
 
             if annotations[0] == command_argument.empty:

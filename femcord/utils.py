@@ -20,12 +20,18 @@ from datetime import datetime
 
 import re
 
-from typing import Callable, Iterable, Union, Optional, Any
+from typing import Callable, Iterable, Optional, Any
 
 DISCORD_EPOCH = 1420070400000
 ID_PATTERN = re.compile(r"\d{16,19}")
 
 class Missing:
+    def __str__(self) -> str:
+        return "MISSING"
+
+    def __repr__(self) -> str:
+        return "MISSING"
+
     def __eq__(self, other: Any) -> bool:
         return False
 
@@ -34,7 +40,7 @@ class Missing:
 
 MISSING: Any = Missing()
 
-def parse_time(timestamp: Union[str, datetime]) -> Optional[datetime]:
+def parse_time(timestamp: str | datetime) -> Optional[datetime]:
     if isinstance(timestamp, str):
         timestamp = timestamp.replace(" ", "T")
         return datetime.fromisoformat(timestamp)

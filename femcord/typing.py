@@ -40,8 +40,14 @@ class Typing:
         return self.__aexit__(None, None, None)
 
     async def __aenter__(self) -> None:
+        if not self.message:
+            return
+
         await self.send()
         self.task = self.loop.create_task(self.do_typing())
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if not self.message:
+            return
+
         self.task.cancel()
