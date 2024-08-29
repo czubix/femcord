@@ -28,7 +28,7 @@ from datetime import datetime
 from typing import Callable, Optional
 
 class Client:
-    def __init__(self, *, intents: Intents = Intents.default(), messages_limit: int = 1000, last_latencies_limit: int = 100) -> None:
+    def __init__(self, *, intents: Intents = Intents.default(), messages_limit: int = 1000, last_latencies_limit: int = 100, mobile: bool = False) -> None:
         self.loop = asyncio.get_event_loop()
         self.token: str = MISSING
         self.bot: bool = MISSING
@@ -39,6 +39,7 @@ class Client:
         self.waiting_for: list[tuple[str, asyncio.Future, Callable[..., bool]]] = []
         self.messages_limit = messages_limit
         self.last_latencies_limit = last_latencies_limit
+        self.mobile = mobile
         self.started_at = datetime.now()
 
     def event(self, function: Callable[..., None], *, name: Optional[str] = None) -> None:

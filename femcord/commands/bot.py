@@ -41,11 +41,11 @@ if TYPE_CHECKING:
 BeforeAfterFunction = Callable[[Context | AppContext], Awaitable[None]]
 
 class Bot(Client):
-    def __init__(self, *, name: Optional[str] = None, command_prefix: Callable[["Message"], Awaitable[str]] | str, intents: Optional[Intents] = None, messages_limit: int = 1000, owners: Optional[tuple[str] | list[str]] = None, context: Optional[Context] = None, app_context: Optional[AppContext] = None) -> None:
-        super().__init__(intents=intents or Intents.all(), messages_limit=messages_limit)
+    def __init__(self, *, name: Optional[str] = None, command_prefix: Callable[["Message"], Awaitable[str]] | str, intents: Optional[Intents] = None, messages_limit: int = 1000, last_latencies_limit: int = 100, mobile: bool = False, owners: Optional[tuple[str] | list[str]] = None, context: Optional[Context] = None, app_context: Optional[AppContext] = None) -> None:
+        super().__init__(intents=intents or Intents.all(), messages_limit=messages_limit, last_latencies_limit=last_latencies_limit, mobile=mobile)
 
         self.name = name
-        self.owners = list(owners) or []
+        self.owners = list(owners or [])
         self.original_prefix = self.command_prefix = command_prefix
 
         self.context = context or Context
@@ -149,7 +149,8 @@ class Bot(Client):
                     for argument in command_arguments
                 ],
                 "integration_types": [0, 1],
-                "contexts": [0, 1, 2]
+                "contexts": [0, 1, 2],
+                "nsfw": command.nsfw
             })
 
         await self.http.request(Route("PUT", "applications", self.gateway.bot_user.id, "commands"), data=commands)

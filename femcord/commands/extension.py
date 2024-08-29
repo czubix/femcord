@@ -111,6 +111,7 @@ class AppCommand:
         self.callback: Callback = kwargs["callback"]
         self.name: str = kwargs.get("name") or self.callback.__name__
         self.description: Optional[str] = kwargs.get("description")
+        self.nsfw: bool = kwargs.get("nsfw", False)
 
     async def __call__(self, context: "AppContext", *args, **kwargs) -> None:
         if self.cog is not None:

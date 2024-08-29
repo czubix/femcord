@@ -147,9 +147,8 @@ class Gateway:
         identify_data = {
             "token": self.__client.token,
             "properties": {
-                "os": sys.platform,
-                "browser": "femcord",
-                "device": "femcord"
+                "os": "Android" if self.__client.mobile else sys.platform,
+                "browser": "Discord Android" if self.__client.mobile else "femcord"
             },
             "large_threshold": 250
         }

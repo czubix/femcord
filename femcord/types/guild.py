@@ -149,7 +149,7 @@ class Guild:
         banner_url = CDN_URL + "/banners/%s/%s.%s" % (guild["id"], guild["banner"], "gif" if guild["banner"] and guild["banner"][:2] == "a_" else "png")
 
         if guild["icon"] is None:
-            icon_url = CDN_URL + "/embed/avatars/%s.png" % (int(guild["id"]) % 5)
+            icon_url = CDN_URL + "/embed/avatars/%s.png" % (int(guild["id"]) % 6)
 
         if guild["banner"] is None:
             banner_url = None

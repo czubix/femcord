@@ -367,6 +367,9 @@ class HTTP:
 
         return self.request(Route("GET", "channels", channel_id, "messages"), params=params)
 
+    def get_message(self, channel_id: str, message_id: str) -> Awaitable[dict]:
+        return self.request(Route("GET", "channels", channel_id, "messages", message_id))
+
     def purge_channel(self, channel_id: str, messages: str) -> Awaitable[dict]:
         return self.request(Route("POST", "channels", channel_id, "messages", "bulk-delete"), data={"messages": messages})
 

@@ -80,7 +80,9 @@ class InteractionData:
     )
 
     @classmethod
-    async def from_raw(cls, client, guild_id, data):
+    async def from_raw(cls, client, ids, data):
+        guild_id, channel_id = ids
+
         if "type" in data:
             data["type"] = ApplicationCommandTypes(data["type"])
         if "options" in data:
@@ -90,12 +92,10 @@ class InteractionData:
         if "target" in data:
             if data["type"] == ApplicationCommandTypes.USER:
                 data["target"] = await client.gateway.get_user(data["target"])
-
             elif data["type"] == ApplicationCommandTypes.MESSAGE:
-                index = get_index(client.gateway.messages, data["target"], key=lambda m: m.id)
-
-                if index is not None:
-                    data["target"] = client.gateway.messages[index]
+                guild = client.gateway.get_guild(guild_id)
+                if guild:
+                    data["target"] = await guild.get_channel(channel_id).get_message(data["target"])
         if "components" in data:
             data["components"] = [await MessageComponents.from_raw(client, component) for component in data["components"]]
 
@@ -139,7 +139,7 @@ class Interaction:
         if "type" in interaction:
             interaction["type"] = InteractionTypes(interaction["type"])
         if "data" in interaction:
-            interaction["data"] = await InteractionData.from_raw(client, interaction.get("guild"), interaction["data"])
+            interaction["data"] = await InteractionData.from_raw(client, (interaction.get("guild"), interaction.get("channel")), interaction["data"])
         if "guild" in interaction:
             interaction["guild"] = client.gateway.get_guild(interaction["guild"])
             if interaction["guild"]:

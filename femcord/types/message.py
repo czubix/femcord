@@ -98,7 +98,7 @@ class SelectOptions:
     @classmethod
     async def from_raw(cls, client, option):
         if "emoji" in option:
-            option["emoji"] = Emoji(self.__client, **option["emoji"])
+            option["emoji"] = Emoji(client, **option["emoji"])
 
         return cls(client, **option)
 

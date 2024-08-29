@@ -139,9 +139,6 @@ class Channel:
 
         return ctx.guild.get_channel(argument)
 
-    async def fetch_message(self, message_id: str) -> dict | str:
-        return await self.__client.http.request(Route("GET", "channels", self.id, "messages", message_id))
-
     async def start_typing(self) -> dict | str:
         return await self.__client.http.start_typing(self.id)
 
@@ -162,7 +159,7 @@ class Channel:
             if message.channel == self and message.id == message_id:
                 return message
 
-        message = await self.fetch_message(message_id)
+        message = await self.__client.http.get_message(self.id, message_id)
         message = await Message.from_raw(self.__client, message)
 
         self.__client.gateway.cache_message(message)

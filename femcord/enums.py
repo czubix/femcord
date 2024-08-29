@@ -227,6 +227,8 @@ class InteractionCallbackTypes(Enum):
     UPDATE_MESSAGE = 7
     APPLICATION_COMMAND_AUTOCOMPLETE_RESULT = 8
     MODAL = 9
+    PREMIUM_REQUIRED = 11
+    LAUNCH_ACTIVITY = 12
 
 class ApplicationCommandTypes(Enum):
     CHAT_INPUT = 1

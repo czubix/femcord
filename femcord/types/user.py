@@ -88,7 +88,7 @@ class User:
         avatar_url = CDN_URL + "/avatars/%s/%s.%s" % (user["id"], user["avatar"], "gif" if user["avatar"] and user["avatar"][:2] == "a_" else "png")
 
         if user["avatar"] is None:
-            avatar_url = CDN_URL + "/embed/avatars/%s.png" % ((int(user["id"]) >> 22) % 5)
+            avatar_url = CDN_URL + "/embed/avatars/%s.png" % ((int(user["id"]) >> 22) % 6)
 
         user["avatar_url"] = avatar_url
         user["created_at"] = time_from_snowflake(user["id"])
