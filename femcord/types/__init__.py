@@ -27,12 +27,12 @@ from .sticker import Sticker
 from .user import User
 from .voice import VoiceState
 
-channel.Message = Message
-
-interaction.Message = Message
-interaction.MessageComponents = MessageComponents
-
 from datetime import datetime
+
+channel.Message = Message  # noqa: F821
+
+interaction.Message = Message  # noqa: F821
+interaction.MessageComponents = MessageComponents  # noqa: F821
 
 class M:
     def __matmul__(self, item):
@@ -71,3 +71,18 @@ class T:
 
 m = M()
 t = T()
+
+__all__ = (
+    PermissionOverwrite, ThreadMetadata, ThreadMember, Channel,
+    EmbedFooter, EmbedImage, EmbedThumbnail, EmbedVideo, EmbedProvider, EmbedAuthor, EmbedField, Embed,
+    Emoji,
+    Guild, WelcomeScreenChannel, WelcomeScreen,
+    InteractionDataOption, InteractionData, Interaction,
+    ActivityTimestamps, ActivityParty, ActivityAssets, ActivitySecrets, ActivityButton, Activity, ClientStatus, Presence,
+    Attachment, MessageReference, MessageSticker, SelectOptions, MessageComponents, MessageReaction, MessageInteractionMetadata, Message,
+    Role,
+    Sticker,
+    User,
+    VoiceState,
+    m, t
+)

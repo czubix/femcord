@@ -17,8 +17,8 @@ limitations under the License.
 from .dataclass import dataclass
 
 from ..http import Route
-from ..enums import *
-from ..utils import *
+from ..enums import VerificationLevel, DefaultMessageNotification, ExplicitContentFilter, NSFWLevel, MfaLevel
+from ..utils import get_index, parse_time, time_from_snowflake
 from ..errors import InvalidArgument
 
 from .channel import Channel
@@ -228,13 +228,13 @@ class Guild:
                 return sticker
 
     def icon_as(self, extension: str) -> str:
-        if not extension in EXTENSIONS:
+        if extension not in EXTENSIONS:
             raise InvalidArgument("Invalid extension")
 
         return CDN_URL + "/icons/%s/%s.%s" % (self.id, self.icon, extension)
 
     def banner_as(self, extension: str) -> str:
-        if not extension in EXTENSIONS:
+        if extension not in EXTENSIONS:
             raise InvalidArgument("Invalid extension")
 
         return CDN_URL + "/banners/%s/%s.%s" % (self.id, self.banner, extension)

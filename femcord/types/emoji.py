@@ -16,8 +16,7 @@ limitations under the License.
 
 from .dataclass import dataclass
 
-from ..enums import *
-from ..utils import *
+from ..utils import time_from_snowflake
 
 from datetime import datetime
 

@@ -16,14 +16,13 @@ limitations under the License.
 
 from .dataclass import dataclass
 
-from ..enums import *
-from ..utils import *
+from ..enums import ChannelTypes, OverwriteTypes
+from ..utils import ID_PATTERN, parse_time, time_from_snowflake
 from ..permissions import Permissions
-from ..http import Route
 
 from datetime import datetime
 
-from typing import Type, Optional, Sequence, TYPE_CHECKING
+from typing import Callable, Type, Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client

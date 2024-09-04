@@ -16,8 +16,7 @@ limitations under the License.
 
 from .dataclass import dataclass
 
-from ..enums import *
-from ..utils import *
+from ..utils import parse_time
 
 from datetime import datetime
 

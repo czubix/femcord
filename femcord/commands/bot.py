@@ -26,12 +26,19 @@ from .extension import Cog, Command, Group, AppCommand, Listener
 from .enums import CommandTypes
 from .context import Context, AppContext
 
-from .errors import *
+from .errors import (
+    ExtensionNotFound, ExtensionAlreadyLoaded, ExtensionNotLoaded,
+    CogAlreadyLoaded, CogNotFound,
+    CommandNotFound, CommandDisabled,
+    MissingArgument, InvalidArgumentType)
 
 from dataclasses import is_dataclass
 from types import CoroutineType, ModuleType, UnionType
 
-import importlib.util, inspect, traceback, sys
+import importlib.util
+import inspect
+import traceback
+import sys
 
 from typing import Callable, Awaitable, Optional, Any, TYPE_CHECKING
 

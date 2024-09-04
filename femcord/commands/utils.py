@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .errors import *
+from .errors import CheckFailure, NotOwner, NotNsfw, NoPermission
 
 from . import Context, Cog
 

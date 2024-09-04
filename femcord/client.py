@@ -19,11 +19,9 @@ import asyncio
 from .gateway import Gateway
 from .http import HTTP
 from .intents import Intents
-from .types import *
 from .utils import MISSING
 
 from datetime import datetime
-
 
 from typing import Callable, Optional
 
@@ -58,7 +56,7 @@ class Client:
         if timeout is not None:
             try:
                 return await asyncio.wait_for(future, timeout)
-            except TimeoutError as exc:
+            except TimeoutError:
                 self.waiting_for.remove(listener)
                 raise
 

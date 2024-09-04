@@ -16,8 +16,8 @@ limitations under the License.
 
 from .dataclass import dataclass
 
-from ..enums import *
-from ..utils import *
+from ..enums import CommandOptionTypes, ApplicationCommandTypes, ComponentTypes, InteractionTypes, ChannelTypes, InteractionCallbackTypes, MessageFlags
+from ..utils import get_index
 
 from .channel import Channel
 

@@ -40,7 +40,7 @@ def dataclass(cls, **kwargs):
             to_remove = []
 
             for key in data_argument:
-                if not key in used_keys:
+                if key not in used_keys:
                     to_remove.append(key)
 
             for key in to_remove:

@@ -14,7 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import asyncio, aiohttp, socket, select, nacl.secret, struct, threading, time
+import asyncio
+
+import aiohttp
+import socket
+import select
+
+import nacl.secret
+import struct
+
+import threading
+import time
 
 from enum import Enum
 

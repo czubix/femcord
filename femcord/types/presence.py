@@ -16,9 +16,11 @@ limitations under the License.
 
 from .dataclass import dataclass
 
-from ..enums import *
+from ..enums import ActivityTypes, ActivityFlags, StatusTypes
 
 from .emoji import Emoji
+
+from enum import Enum
 
 from datetime import datetime
 

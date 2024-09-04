@@ -16,8 +16,8 @@ limitations under the License.
 
 from .dataclass import dataclass
 
-from ..enums import *
-from ..utils import *
+from ..enums import MessageReferences, StickerFormatTypes, ComponentTypes, ButtonStyles, InteractionTypes, MessageTypes, MessageFlags
+from ..utils import parse_time
 
 from .channel import Channel
 from .emoji import Emoji
@@ -121,7 +121,8 @@ class MessageComponents:
 
     @classmethod
     async def from_raw(cls, client, component):
-        if "hash" in component: del component["hash"]
+        if "hash" in component:
+            del component["hash"]
 
         component["type"] = ComponentTypes(component["type"])
 

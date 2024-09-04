@@ -16,8 +16,8 @@ limitations under the License.
 
 from .dataclass import dataclass
 
-from ..enums import *
-from ..utils import *
+from ..enums import PublicFlags, UserFlags, PremiumTypes
+from ..utils import ID_PATTERN, time_from_snowflake
 from ..errors import InvalidArgument
 
 from .channel import Channel
@@ -75,7 +75,7 @@ class User:
         return "<User id={!r} username={!r} public_flags={!r}>".format(self.id, self.username, self.public_flags)
 
     def avatar_as(self, extension):
-        if not extension in ("png", "jpg", "jpeg", "webp", "gif"):
+        if extension not in ("png", "jpg", "jpeg", "webp", "gif"):
             raise InvalidArgument("Invalid extension")
 
         if self.avatar is None:

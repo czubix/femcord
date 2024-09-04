@@ -38,7 +38,7 @@ class Intents:
         if not isinstance(intent, IntentsEnum) and intent in (i.name for i in IntentsEnum):
             intent = IntentsEnum[intent]
 
-        if not intent in IntentsEnum:
+        if intent not in IntentsEnum:
             raise IntentNotExist(f"{intent} doesn't exist")
 
         return intent
@@ -69,7 +69,7 @@ class Intents:
 
     @classmethod
     def default(cls) -> "Intents":
-        return cls(*(intent for intent in IntentsEnum if not intent in (IntentsEnum.GUILD_MEMBERS, IntentsEnum.GUILD_PRESENCES, IntentsEnum.GUILD_MESSAGES)))
+        return cls(*(intent for intent in IntentsEnum if intent not in (IntentsEnum.GUILD_MEMBERS, IntentsEnum.GUILD_PRESENCES, IntentsEnum.GUILD_MESSAGES)))
 
     @classmethod
     def from_int(cls, intents: IntentsEnum | str) -> "Intents":

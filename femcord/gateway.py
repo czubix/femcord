@@ -16,17 +16,30 @@ limitations under the License.
 
 import asyncio
 
+import sys
+import base64
+import traceback
+import time
+import copy
+
 from .websocket import WebSocket
 from .http import HTTP, Route
 from .utils import get_index, get_mime, parse_time, MISSING
 
-from .enums import *
-from .types import *
+from .types import (
+    Guild, Channel, Role,
+    User, Member,
+    Message, MessageComponents, Attachment, Embed,
+    Interaction,
+    Emoji, Sticker,
+    Presence,
+    VoiceState)
+from .enums import (
+    Opcodes, Intents as IntentsEnum,
+    MfaLevel, ExplicitContentFilter, VerificationLevel, NSFWLevel,
+    DefaultMessageNotification)
 
-from .enums import Intents as IntentsEnum
 from types import CoroutineType
-
-import sys, base64, traceback, time, copy
 
 from typing import Callable, Optional, Awaitable, TYPE_CHECKING
 
@@ -210,7 +223,7 @@ class Gateway:
         if event_name == "READY":
             self.session_id = data["session_id"]
             self.bot_user = await User.from_raw(self.__client, data["user"])
-            self.emojis = await self.get_application_emojis()
+            self.emojis = await self.get_application_emojis() if self.__client.bot else []
             self.unavailable_guilds = data["guilds"]
 
             self.ready = True

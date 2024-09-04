@@ -16,8 +16,8 @@ limitations under the License.
 
 from .dataclass import dataclass
 
-from ..enums import *
-from ..utils import *
+from ..enums import StickerTypes, StickerFormatTypes
+from ..utils import time_from_snowflake
 
 from datetime import datetime
 
@@ -47,8 +47,15 @@ class Sticker:
     def __repr__(self):
         return "<Sticker id={!r} name={!r} description={!r}>".format(self.id, self.name, self.description)
 
+    @property
+    def url(self) -> str:
+        extension = ".png" if self.format_type is not StickerFormatTypes.GIF else ".gif"
+        return "https://cdn.discordapp.com/stickers/" + self.id + extension
+
     @classmethod
     async def from_raw(cls, client, sticker):
+        sticker["type"] = StickerTypes(sticker["type"])
+        sticker["format_type"] = StickerFormatTypes(sticker["format_type"])
         sticker["created_at"] = time_from_snowflake(sticker["id"])
 
         return cls(client, **sticker)
