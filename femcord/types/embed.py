@@ -1,5 +1,5 @@
 """
-Copyright 2022-2024 czubix
+Copyright 2022-2025 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ class EmbedImage:
     proxy_url: str = None
     placeholder_version: Any = None
     placeholder: Any = None
+    flags: int = None
 
 @dataclass
 class EmbedThumbnail:
@@ -48,6 +49,7 @@ class EmbedThumbnail:
     proxy_url: str = None
     placeholder_version: Any = None
     placeholder: Any = None
+    flags: int = None
 
 @dataclass
 class EmbedVideo:
@@ -57,6 +59,7 @@ class EmbedVideo:
     proxy_url: str = None
     placeholder_version: Any = None
     placeholder: Any = None
+    flags: int = None
 
 @dataclass
 class EmbedProvider:

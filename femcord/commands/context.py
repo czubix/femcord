@@ -1,5 +1,5 @@
 """
-Copyright 2022-2024 czubix
+Copyright 2022-2025 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ from typing import Union, Optional, Any, Awaitable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .bot import Bot
+    from ..components import Components
     from ..types import Message, Interaction, User, Channel, Role
 
 class Context:
@@ -88,6 +89,10 @@ class AppContext:
     def think(self) -> Awaitable[None]:
         self.to_edit = True
         return self.interaction.callback(InteractionCallbackTypes.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE)
+
+    def modal(self, components: "Components") -> Awaitable[None]:
+        self.replied = True
+        return self.interaction.callback(InteractionCallbackTypes.MODAL, components=components)
 
     def send(self, *args, **kwargs) -> Awaitable[None]:
         if self.to_edit:

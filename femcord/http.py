@@ -1,5 +1,5 @@
 """
-Copyright 2022-2024 czubix
+Copyright 2022-2025 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -220,6 +220,9 @@ class HTTP:
 
         if stickers is not None:
             data["data"]["sticker_ids"] = [sticker.id for sticker in stickers]
+
+        if interaction_type is InteractionCallbackTypes.MODAL:
+            data["data"] = components.__dict__
 
         return self.request(Route("POST", "interactions", interaction_id, interaction_token, "callback"), data=data, files=files)
 

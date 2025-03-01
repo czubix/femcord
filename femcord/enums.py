@@ -1,5 +1,5 @@
 """
-Copyright 2022-2024 czubix
+Copyright 2022-2025 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -134,6 +134,7 @@ class ChannelTypes(Enum):
     GUILD_STAGE_VOICE = 13
     GUILD_DIRECTORY = 14
     GUILD_FORUM = 15
+    GUILD_MEDIA = 16
 
 class MessageTypes(Enum):
     NONE = None
@@ -207,6 +208,7 @@ class ButtonStyles(Enum):
     SUCCESS = 3
     DANGER = 4
     LINK = 5
+    PREMIUM = 6
 
 class TextInputStyles(Enum):
     SHORT = 1
@@ -314,6 +316,7 @@ class Opcodes(Enum):
     INVALID_SESSION = 9
     HELLO = 10
     HEARTBEAT_ACK = 11
+    SEARCH_RECENT_MEMBERS = 35
 
 class PremiumTypes(Enum):
     NONE = 0

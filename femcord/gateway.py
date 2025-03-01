@@ -1,5 +1,5 @@
 """
-Copyright 2022-2024 czubix
+Copyright 2022-2025 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import time
 import copy
 
 from .websocket import WebSocket
-from .http import HTTP, Route
+from .http import HTTP, Route, HTTPException
 from .utils import get_index, get_mime, parse_time, MISSING
 
 from .types import (
@@ -632,7 +632,10 @@ class Gateway:
         if guild is None:
             return None, None, member
 
-        old_member = self.copy(await guild.get_member(member["user"]["id"]))
+        try:
+            old_member = self.copy(await guild.get_member(member["user"]["id"]))
+        except HTTPException:
+            return
 
         del member["guild_id"]
 

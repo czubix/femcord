@@ -1,5 +1,5 @@
 """
-Copyright 2022-2024 czubix
+Copyright 2022-2025 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,10 +37,10 @@ class ActivityTimestamps:
 
     @classmethod
     async def from_raw(cls, client, timestamps):
-        if "start" in timestamps:
-            timestamps["start"] = datetime.fromtimestamp(timestamps["start"] / 1000)
-        if "end" in timestamps:
-            timestamps["end"] = datetime.fromtimestamp(timestamps["end"] / 1000)
+        # if "start" in timestamps:
+        #     timestamps["start"] = datetime.fromtimestamp(timestamps["start"] / 1000)
+        # if "end" in timestamps:
+        #     timestamps["end"] = datetime.fromtimestamp(timestamps["end"] / 1000)
 
         return cls(client, **timestamps)
 

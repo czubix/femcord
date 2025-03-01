@@ -1,5 +1,5 @@
 """
-Copyright 2022-2024 czubix
+Copyright 2022-2025 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@ limitations under the License.
 
 import asyncio
 
-from .types import Message
+from .types import Channel
 
 from typing import Awaitable
 
 class Typing:
-    def __init__(self, message: Message) -> None:
+    def __init__(self, channel: Channel) -> None:
         self.loop = asyncio.get_event_loop()
-        self.message = message
+        self.channel = channel
 
     def send(self) -> Awaitable:
-        return self.message.channel.start_typing()
+        return self.channel.start_typing()
 
     async def do_typing(self) -> None:
         for _ in range(12):
@@ -40,14 +40,14 @@ class Typing:
         return self.__aexit__(None, None, None)
 
     async def __aenter__(self) -> None:
-        if not self.message:
+        if not self.channel:
             return
 
         await self.send()
         self.task = self.loop.create_task(self.do_typing())
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        if not self.message:
+        if not self.channel:
             return
 
         self.task.cancel()
