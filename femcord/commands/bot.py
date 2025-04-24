@@ -25,6 +25,7 @@ from ..utils import get_index
 from .extension import Cog, Command, Group, AppCommand, Listener
 from .enums import CommandTypes
 from .context import Context, AppContext
+from .typing import AppCommandAttribute
 
 from .errors import (
     ExtensionNotFound, ExtensionAlreadyLoaded, ExtensionNotLoaded,
@@ -112,14 +113,15 @@ class Bot(Client):
             inspect._empty: CommandOptionTypes.STRING
         }
 
-        def get_type(_type: User | Channel | Role | str | int | float | bool | UnionType) -> CommandOptionTypes:
+        def get_type(_type: User | Channel | Role | str | int | float | bool | UnionType | AppCommandAttribute) -> CommandOptionTypes:
             if _type in types:
                 return types[_type]
-
-            if isinstance(_type, UnionType):
+            elif isinstance(_type, UnionType):
                 for _type in _type.__args__:
                     if _type in types:
                         return types[_type]
+            elif isinstance(_type, AppCommandAttribute):
+                return types[_type.type]
 
             raise TypeError(f"'{_type}' type is not supported")
 
@@ -152,7 +154,7 @@ class Bot(Client):
                         "name": argument.name,
                         "description": argument.name,
                         "required": argument.default == argument.empty
-                    }
+                    } | (argument.annotation.fields if isinstance(argument.annotation, AppCommandAttribute) else {})
                     for argument in command_arguments
                 ],
                 "integration_types": [0, 1],
@@ -512,6 +514,9 @@ class Bot(Client):
                 parsed_argument = None
 
                 try:
+
+                    if isinstance(annotation, AppCommandAttribute):
+                        annotation = annotation.type
                     if is_dataclass(annotation) is True:
                         annotation: Any = getattr(annotation, "from_arg", annotation)
                         parsed_argument = annotation(context, arguments[index])

@@ -80,6 +80,9 @@ class WebSocket:
         await WebSocket.__init__(self, self.gateway, self.client)
 
     async def send(self, op: Opcodes, data: dict, *, sequences: int = None) -> None:
+        if self.ws.closed:
+            return
+
         logging.debug(f"sent op: {op.name}, data: {data}, sequences: {sequences}".replace(self.client.token, "TOKEN"))
 
         ready_data = {
@@ -93,4 +96,7 @@ class WebSocket:
         while self.ws.closed:
             await asyncio.sleep(0.1)
 
-        await self.ws.send_json(ready_data)
+        try:
+            await self.ws.send_json(ready_data)
+        except ConnectionResetError:
+            pass

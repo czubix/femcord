@@ -138,9 +138,12 @@ class Gateway:
     async def dispatch(self, event: str, *args, **kwargs) -> None:
         for listener in self.__client.waiting_for:
             if listener[0] == event:
-                if listener[2](*args) is True:
-                    listener[1].set_result(args)
-                    return self.__client.waiting_for.remove(listener)
+                try:
+                    if listener[2](*args) is True:
+                        listener[1].set_result(args)
+                        return self.__client.waiting_for.remove(listener)
+                except Exception:
+                    pass
 
         for listener in self.__client.listeners:
             if listener.__name__ == "on_" + event:
@@ -355,7 +358,7 @@ class Gateway:
     async def get_user(self, user: dict | str) -> User:
         for cached_user in self.users.values():
             if isinstance(user, str):
-                if user.lower() in (cached_user.username.lower(), cached_user.id):
+                if user.lower() in (cached_user.username.lower(), (cached_user.global_name or "").lower(), cached_user.id):
                     return cached_user
             elif isinstance(user, dict):
                 if user["id"] == cached_user.id:

@@ -267,18 +267,18 @@ class Message:
 
         return cls(client, **message)
 
-    async def reply(self, content: Optional[str] = None, *, embed: Optional["UserEmbed"] = None, embeds: Optional[Sequence["UserEmbed"]] = None, components: Optional["Components"] = None, files: Optional[list[str | bytes]] = None, mentions: Optional[list] = [], stickers: Optional[list["Sticker"]] = None, other: Optional[dict] = None) -> "Message":
+    async def reply(self, content: Optional[str] = None, *, embed: Optional["UserEmbed"] = None, embeds: Optional[Sequence["UserEmbed"]] = None, components: Optional["Components"] = None, files: Optional[list[tuple[str, str | bytes]]] = None, mentions: Optional[list] = [], stickers: Optional[list["Sticker"]] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> "Message":
         other = other or {}
         other["message_reference"] = {"guild_id": self.guild.id, "channel_id": self.channel.id, "message_id": self.id}
-        return await self.channel.send(content, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, stickers=stickers, other=other)
+        return await self.channel.send(content, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, stickers=stickers, flags=flags, other=other)
 
-    async def edit(self, content: Optional[str] = None, *, embed: Optional["UserEmbed"] = None, embeds: Optional[Sequence["UserEmbed"]] = None, components: Optional["Components"] = None, files: Optional[list[str | bytes]] = None, mentions: Optional[list] = [], stickers: Optional[list["Sticker"]] = None, other: Optional[dict] = None) -> "Message":
+    async def edit(self, content: Optional[str] = None, *, embed: Optional["UserEmbed"] = None, embeds: Optional[Sequence["UserEmbed"]] = None, components: Optional["Components"] = None, files: Optional[list[tuple[str, str | bytes]]] = None, mentions: Optional[list] = [], stickers: Optional[list["Sticker"]] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> "Message":
         channel_id = self.channel
 
         if isinstance(self.channel, Channel):
             channel_id = self.channel.id
 
-        response = await self.__client.http.edit_message(channel_id, self.id, content, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, stickers=stickers, other=other)
+        response = await self.__client.http.edit_message(channel_id, self.id, content, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, stickers=stickers, flags=flags, other=other)
 
         if response is not None:
             return await Message.from_raw(self.__client, response)

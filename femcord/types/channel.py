@@ -16,13 +16,13 @@ limitations under the License.
 
 from .dataclass import dataclass
 
-from ..enums import ChannelTypes, OverwriteTypes
+from ..enums import ChannelTypes, OverwriteTypes, MessageFlags
 from ..utils import ID_PATTERN, parse_time, time_from_snowflake
 from ..permissions import Permissions
 
 from datetime import datetime
 
-from typing import Callable, Type, Optional, Sequence, TYPE_CHECKING
+from typing import Callable, Type, Optional, Sequence, Unpack, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -49,6 +49,17 @@ class PermissionOverwrite:
         overwrite["deny"] = Permissions.from_int(int(overwrite["deny"]))
 
         return cls(client, **overwrite)
+
+# class PermissionOverwrite:
+#     def __init__(self, __client: "Client", **kwargs: Unpack[PermissionOverwriteModel]) -> None:
+#         self.type = OverwriteTypes(kwargs.get("type"))
+#         self.allow = Permissions.from_int(int(kwargs.get("allow", 0)))
+#         self.deny = Permissions.from_int(int(kwargs.get("deny", 0)))
+
+#         if self.type is OverwriteTypes.ROLE:
+#             self.role_id = kwargs.get("id")
+#         elif self.type is OverwriteTypes.MEMBER:
+#             self.user_id = kwargs.get("id")
 
 @dataclass
 class ThreadMetadata:
@@ -141,8 +152,8 @@ class Channel:
     async def start_typing(self) -> dict | str:
         return await self.__client.http.start_typing(self.id)
 
-    async def send(self, content: Optional[str] = None, *, embed: Optional["Embed"] = None, embeds: Optional[Sequence["Embed"]] = None, components: Optional["Components"] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list["Sticker"]] = None, other: Optional[dict] = None) -> "Message":
-        response = await self.__client.http.send_message(self.id, content, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, stickers=stickers, other=other)
+    async def send(self, content: Optional[str] = None, *, embed: Optional["Embed"] = None, embeds: Optional[Sequence["Embed"]] = None, components: Optional["Components"] = None, files: Optional[list[tuple[str, str | bytes]]] = None, mentions: Optional[list] = [], stickers: Optional[list["Sticker"]] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> "Message":
+        response = await self.__client.http.send_message(self.id, content, embed=embed, embeds=embeds, components=components, files=files or [], mentions=mentions, stickers=stickers, flags=flags, other=other)
 
         if response is not None:
             return await Message.from_raw(self.__client, response)

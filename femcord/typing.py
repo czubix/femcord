@@ -16,12 +16,15 @@ limitations under the License.
 
 import asyncio
 
-from .types import Channel
+from .commands import Context, AppContext
 
-from typing import Awaitable
+from typing import Union, Awaitable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .types import Channel
 
 class Typing:
-    def __init__(self, channel: Channel) -> None:
+    def __init__(self, channel: "Channel") -> None:
         self.loop = asyncio.get_event_loop()
         self.channel = channel
 
@@ -40,14 +43,27 @@ class Typing:
         return self.__aexit__(None, None, None)
 
     async def __aenter__(self) -> None:
-        if not self.channel:
-            return
-
         await self.send()
         self.task = self.loop.create_task(self.do_typing())
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        if not self.channel:
+        if self.channel.type is None:
             return
 
         self.task.cancel()
+
+class HybridTyping:
+    def __init__(self, context: Union["Context", "AppContext"]) -> None:
+        self.context = context
+        self.typing: Typing | None = None
+
+    async def __aenter__(self) -> None:
+        if isinstance(self.context, AppContext):
+            await self.context.think()
+        else:
+            self.typing = Typing(self.context.channel)
+            await self.typing.start()
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self.typing is not None:
+            await self.typing.stop()

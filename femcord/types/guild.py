@@ -245,7 +245,7 @@ class Guild:
     async def get_member(self, member: dict | str, user: Optional[User | dict] = None) -> Member:
         for cached_member in self.members:
             if isinstance(member, str):
-                if member.lower() in (cached_member.user.username.lower(), (cached_member.nick or "").lower(), cached_member.user.id):
+                if member.lower() in (cached_member.user.username.lower(), (cached_member.user.global_name or "").lower(), (cached_member.nick or "").lower(), cached_member.user.id):
                     return cached_member
             elif isinstance(member, dict):
                 if user is not None:

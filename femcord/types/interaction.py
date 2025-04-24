@@ -166,7 +166,7 @@ class Interaction:
 
         return cls(client, **interaction)
 
-    async def callback(self, interaction_type: InteractionCallbackTypes, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: Optional[str] = None, embed: "Embed" = None, embeds: Sequence["Embed"] = None, components: Optional["Components"] = None, files: Optional[list[str | bytes]] = None, mentions: Optional[list] = [], flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None):
+    async def callback(self, interaction_type: InteractionCallbackTypes, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: Optional[str] = None, embed: "Embed" = None, embeds: Sequence["Embed"] = None, components: Optional["Components"] = None, files: Optional[list[tuple[str, str | bytes]]] = None, mentions: Optional[list] = [], flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None):
         return await self.__client.http.interaction_callback(self.id, self.token, interaction_type, content, title=title, custom_id=custom_id, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, flags=flags, other=other)
 
     async def edit(self, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: Optional[str] = None, embed: "Embed" = None, embeds: Sequence["Embed"] = None, components: Optional["Components"] = None, files: Optional[list[str | bytes]] = None, mentions: Optional[list] = [], flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None):

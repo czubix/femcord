@@ -199,8 +199,15 @@ class ComponentTypes(Enum):
     TEXT_INPUT = 4
     USER_SELECT = 5
     ROLE_SELECT = 6
-    MENTIONALBLE_SELECT = 7
+    MENTIONABLE_SELECT = 7
     CHANNEL_SELECT = 8
+    SECTION = 9
+    TEXT_DISPLAY = 10
+    THUMBNAIL = 11
+    MEDIA_GALLERY = 12
+    FILE = 13
+    SEPARATOR = 14
+    CONTAINER = 17
 
 class ButtonStyles(Enum):
     PRIMARY = 1
@@ -273,6 +280,11 @@ class MessageFlags(Enum):
     HAS_THREAD = 1 << 5
     EPHEMERAL = 1 << 6
     LOADING = 1 << 7
+    FAILED_TO_MENTION_SOME_ROLES_IN_THREAD = 1 << 8
+    SUPPRESS_NOTIFICATIONS = 1 << 12
+    IS_VOICE_MESSAGE = 1 << 13
+    HAS_SNAPSHOT = 1 << 14
+    IS_COMPONENTS_V2 = 1 << 15
 
 class VerificationLevel(Enum):
     NONE = 0
@@ -361,3 +373,12 @@ class InviteTypes(Enum):
     GUILD = 0
     GROUP_DM = 1
     FRIEND = 2
+
+class SelectDefaultValueTypes(Enum):
+    USER = "user"
+    ROLE = "role"
+    CHANNEL = "channel"
+
+class PaddingSizes(Enum):
+    SMALL = 1
+    LARGE = 2

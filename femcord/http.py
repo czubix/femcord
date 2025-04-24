@@ -58,6 +58,7 @@ class HTTP:
         self.session: ClientSession = ClientSession(loop=self.loop)
         self.token: str = client.token
         self.bot: bool = client.bot
+        self.routes: dict[Route, asyncio.Lock] = {}
 
     async def request(self, route: Route, *, headers: Optional[dict] = {}, data: Optional[dict] = None, params: Optional[dict] = None, files: Optional[list[str | bytes]] = None) -> dict | str:
         headers.update({"authorization": ("Bot " if self.bot is True else "") + self.token, "user-agent": "femcord"})
@@ -76,28 +77,31 @@ class HTTP:
 
             kwargs = dict(data=form)
 
-        async with self.session.request(route.method, HTTP.URL + route.endpoint, headers=headers, **kwargs) as response:
-            logging.debug(f"{route.method} {route.endpoint}, data: {data}, params: {params}, files: {[file[0] for file in files] if files is not None else None}; status: {response.status}, text: {await response.text()}")
+        if route not in self.routes:
+            self.routes[route] = asyncio.Lock()
 
-            try:
-                response_data = await response.json()
-            except ContentTypeError:
-                response_data = await response.text()
+        async with self.routes[route]:
+            async with self.session.request(route.method, HTTP.URL + route.endpoint, headers=headers, **kwargs) as response:
+                logging.debug(f"{route.method} {route.endpoint}, data: {data}, params: {params}, files: {[file[0] for file in files] if files is not None else None}; status: {response.status}, text: {await response.text()}")
 
-            if 300 > response.status >= 200:
-                return response_data
+                try:
+                    response_data = await response.json()
+                except ContentTypeError:
+                    response_data = await response.text()
 
-            if response.status in (400, 401, 403, 404, 405):
-                message = response_data
+                if 300 > response.status >= 200:
+                    return response_data
+                elif response.status == 429:
+                    await asyncio.sleep(response_data["retry_after"])
+                else:
+                    message = response_data
 
-                if isinstance(response_data, dict):
-                    message = response_data["message"]
+                    if isinstance(response_data, dict):
+                        message = response_data["message"]
 
-                raise HTTPException(message, response.status, response_data)
+                    raise HTTPException(message, response.status, response_data)
 
-            elif response.status == 429:
-                await asyncio.sleep(response_data["retry_after"])
-                return await self.request(route, headers=headers, data=data, params=params, files=files)
+        return await self.request(route, headers=headers, data=data, params=params, files=files)
 
     def get_application_emojis(self, application_id: str) -> Awaitable[dict]:
         return self.request(Route("GET", "applications", application_id, "emojis"))
@@ -121,10 +125,16 @@ class HTTP:
     def start_typing(self, channel_id: str) -> Awaitable[dict]:
         return self.request(Route("POST", "channels", channel_id, "typing"))
 
-    def send_message(self, channel_id: str, content: Optional[str] = None, *, embed: Optional[Embed] = None, embeds: Optional[Sequence[Embed]] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, other: Optional[dict] = None) -> Awaitable[dict]:
+    def send_message(self, channel_id: str, content: Optional[str] = None, *, embed: Optional[Embed] = None, embeds: Optional[Sequence[Embed]] = None, components: Optional[Components] = None, files: Optional[list[tuple[str, str | bytes]]] = None, mentions: Optional[list] = None, stickers: Optional[list] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> Awaitable[dict]:
         other = other or {}
 
-        data = {**other, "allowed_mentions": {"parse": mentions, "users": [], "replied_user": False}}
+        if flags:
+            other["flags"] = 0
+
+            for flag in flags:
+                other["flags"] |= flag.value
+
+        data = {**other, "allowed_mentions": {"parse": mentions or [], "users": [], "replied_user": False}}
 
         if content is not None:
             data["content"] = str(content)
@@ -143,15 +153,21 @@ class HTTP:
                     data["embeds"].append(embed.__dict__)
 
         if components is not None:
-            data["components"] = getattr(components, "components", components)
+            data["components"] = components
 
         if stickers is not None:
             data["sticker_ids"] = [sticker.id for sticker in stickers]
 
-        return self.request(Route("POST", "channels", channel_id, "messages"), data=data, files=files)
+        return self.request(Route("POST", "channels", channel_id, "messages"), data=data, files=files or [])
 
-    def edit_message(self, channel_id: str, message_id: str, content: Optional[str] = None, *, embed: Optional[Embed] = None, embeds: Optional[Sequence[Embed]] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, other: Optional[dict] = None) -> Awaitable[dict]:
+    def edit_message(self, channel_id: str, message_id: str, content: Optional[str] = None, *, embed: Optional[Embed] = None, embeds: Optional[Sequence[Embed]] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> Awaitable[dict]:
         other = other or {}
+
+        if flags:
+            other["flags"] = 0
+
+            for flag in flags:
+                other["flags"] |= flag.value
 
         data = {**other, "allowed_mentions": {"parse": mentions, "users": [], "replied_user": False}}
 
@@ -172,7 +188,7 @@ class HTTP:
                     data["embeds"].append(embed.__dict__)
 
         if components is not None:
-            data["components"] = getattr(components, "components", components)
+            data["components"] = components
 
         if stickers is not None:
             data["sticker_ids"] = [sticker.id for sticker in stickers]
@@ -216,13 +232,13 @@ class HTTP:
                     data["data"]["embeds"].append(embed.__dict__)
 
         if components is not None:
-            data["data"]["components"] = getattr(components, "components", components)
+            data["data"]["components"] = components
 
         if stickers is not None:
             data["data"]["sticker_ids"] = [sticker.id for sticker in stickers]
 
         if interaction_type is InteractionCallbackTypes.MODAL:
-            data["data"] = components.__dict__
+            data["data"] = {"title": components.title, "custom_id": components.custom_id, "components": components}
 
         return self.request(Route("POST", "interactions", interaction_id, interaction_token, "callback"), data=data, files=files)
 
@@ -260,7 +276,7 @@ class HTTP:
                     data["embeds"].append(embed.__dict__)
 
         if components is not None:
-            data["components"] = getattr(components, "components", components)
+            data["components"] = components
 
         if stickers is not None:
             data["sticker_ids"] = [sticker.id for sticker in stickers]
@@ -304,7 +320,7 @@ class HTTP:
                     data["embeds"].append(embed.__dict__)
 
         if components is not None:
-            data["components"] = getattr(components, "components", components)
+            data["components"] = components
 
         if stickers is not None:
             data["sticker_ids"] = [sticker.id for sticker in stickers]

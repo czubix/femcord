@@ -16,7 +16,7 @@ limitations under the License.
 
 from .dataclass import dataclass
 
-from ..enums import PublicFlags, UserFlags, PremiumTypes
+from ..enums import PublicFlags, UserFlags, PremiumTypes, MessageFlags
 from ..utils import ID_PATTERN, time_from_snowflake
 from ..errors import InvalidArgument
 
@@ -44,7 +44,6 @@ class User:
     avatar_url: str
     created_at: datetime
     global_name: str = None
-    display_name: str = None
     public_flags: Sequence[PublicFlags] = None
     bot: bool = None
     system: bool = None
@@ -113,12 +112,12 @@ class User:
 
         return ctx.bot.gateway.get_user(argument)
 
-    async def send(self, content: Optional[str] = None, *, embed: Optional["Embed"] = None, embeds: Optional[Sequence["Embed"]] = None, components: Optional["Components"] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], other: Optional[dict] = {}) -> Message:
+    async def send(self, content: Optional[str] = None, *, embed: Optional["Embed"] = None, embeds: Optional[Sequence["Embed"]] = None, components: Optional["Components"] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = {}) -> Message:
         if self.dm is None:
             response = await self.__client.http.open_dm(self.id)
             self.dm = await Channel.from_raw(self.__client, response)
 
-        response = await self.__client.http.send_message(self.dm.id, content, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, other=other)
+        response = await self.__client.http.send_message(self.dm.id, content, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, flags=flags, other=other)
 
         if response is not None:
             return await Message.from_raw(self.__client, response)
