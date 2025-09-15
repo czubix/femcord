@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 @dataclass
 class Emoji:
     __client: "Client"
-    name: str
+    name: str = None
     id: str = None
     created_at: datetime = None
     animated: bool = None

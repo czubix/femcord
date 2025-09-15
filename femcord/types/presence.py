@@ -32,8 +32,8 @@ if TYPE_CHECKING:
 @dataclass
 class ActivityTimestamps:
     __client: "Client"
-    start: datetime = None
-    end: datetime = None
+    start: int = None
+    end: int = None
 
     @classmethod
     async def from_raw(cls, client, timestamps):
@@ -53,8 +53,10 @@ class ActivityParty:
 class ActivityAssets:
     large_image: str = None
     large_text: str = None
+    large_url: str = None
     small_image: str = None
     small_text: str = None
+    small_url: str = None
 
 @dataclass
 class ActivitySecrets:
@@ -82,6 +84,7 @@ class Activity:
     party: ActivityParty = None
     assets: ActivityAssets = None
     secrets: ActivitySecrets = None
+    sync_id: str = None
     instance: bool = None
     flags: Sequence[ActivityFlags] = None
     buttons: list[ActivityButton] | list[str] = None
@@ -107,6 +110,8 @@ class Activity:
             activity["assets"] = ActivityAssets(**activity["assets"])
         if "secrets" in activity:
             activity["secrets"] = ActivitySecrets(**activity["secrets"])
+        if "sync_id" in activity:
+            activity["sync_id"] = activity["sync_id"]
         if "flags" in activity:
             activity["flags"] = [flag for flag in ActivityFlags if activity["flags"] & flag.value == flag.value]
         if "buttons" in activity:

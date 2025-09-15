@@ -57,6 +57,7 @@ class Attachment:
     placeholder_version: Any = None
     placeholder: Any = None
     content_scan_version: Any = None
+    original_content_type: str = None
 
 @dataclass
 class MessageReference:
@@ -117,7 +118,9 @@ class MessageComponents:
     min_values: int = None
     max_values: int = None
     components: Sequence["MessageComponents"] = None
+    component: "MessageComponents" = None
     value: str = None
+    values: list = None
 
     @classmethod
     async def from_raw(cls, client, component):
@@ -128,6 +131,8 @@ class MessageComponents:
 
         if "components" in component:
             component["components"] = [await cls.from_raw(client, components) for components in component["components"]]
+        if "component" in component:
+            component["component"] = await cls.from_raw(client, component["component"])
         if "style" in component:
             component["style"] = ButtonStyles(component["style"])
         if "emoji" in component:
@@ -214,7 +219,7 @@ class Message:
         return "<Message id={!r} channel={!r} author={!r} content={!r}>".format(self.id, self.channel, self.author, self.content)
 
     @classmethod
-    async def from_raw(cls, client, message):
+    async def from_raw(cls, client: "Client", message: dict[str, Any]):
         for guild in client.gateway.guilds:
             if isinstance(message["channel"], Channel) is False:
                 channel = guild.get_channel(message["channel"])

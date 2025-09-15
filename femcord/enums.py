@@ -16,13 +16,13 @@ limitations under the License.
 
 from enum import Enum
 
-class Enum(Enum):
+class FemcordEnum(Enum):
     def __str__(self) -> str:
         return self.name
     def __repr__(self) -> str:
         return self.name
 
-class Intents(Enum):
+class Intents(FemcordEnum):
     GUILDS = 1 << 0
     GUILD_MEMBERS = 1 << 1
     GUILD_BANS = 1 << 2
@@ -39,7 +39,7 @@ class Intents(Enum):
     DIRECT_MESSAGE_REACTIONS = 1 << 13
     DIRECT_MESSAGE_TYPING = 1 << 14
 
-class Permissions(Enum):
+class Permissions(FemcordEnum):
     CREATE_INSTANT_INVITE = 1 << 0
     KICK_MEMBERS = 1 << 1
     BAN_MEMBERS = 1 << 2
@@ -70,17 +70,27 @@ class Permissions(Enum):
     MANAGE_NICKNAMES = 1 << 27
     MANAGE_ROLES = 1 << 28
     MANAGE_WEBHOOKS = 1 << 29
-    MANAGE_EMOJIS_AND_STICKERS = 1 << 30
+    MANAGE_GUILD_EXPRESSIONS = 1 << 30
     USE_APPLICATION_COMMANDS = 1 << 31
     REQUEST_TO_SPEAK = 1 << 32
+    MANAGE_EVENTS = 1 << 33
     MANAGE_THREADS = 1 << 34
     CREATE_PUBLIC_THREADS = 1 << 35
     CREATE_PRIVATE_THREADS = 1 << 36
     USE_EXTERNAL_STICKERS = 1 << 37
     SEND_MESSAGES_IN_THREADS = 1 << 38
-    START_EMBEDDED_ACTIVITIES = 1 << 39
+    USE_EMBEDDED_ACTIVITIES = 1 << 39
+    MODERATE_MEMBERS = 1 << 40
+    VIEW_CREATOR_MONETIZATION_ANALYTICS = 1 << 41
+    USE_SOUNDBOARD = 1 << 42
+    CREATE_GUILD_EXPRESSIONS = 1 << 43
+    CREATE_EVENTS = 1 << 44
+    USE_EXTERNAL_SOUNDS = 1 << 45
+    SEND_VOICE_MESSAGES = 1 << 46
+    SEND_POLLS = 1 << 49
+    USE_EXTERNAL_APPS = 1 << 50
 
-class UserFlags(Enum):
+class UserFlags(FemcordEnum):
     STAFF = 1 << 0
     PARTNER = 1 << 1
     HYPESQUAD = 1 << 2
@@ -96,7 +106,7 @@ class UserFlags(Enum):
     CERTIFIED_MODERATOR = 1 << 18
     BOT_HTTP_INTERACTIONS = 1 << 19
 
-class PublicFlags(Enum):
+class PublicFlags(FemcordEnum):
     DISCORD_EMPLOYEE = 1 << 0
     PARTNERED_SERVER_OWNER = 1 << 1
     HYPESQUAD_EVENTS = 1 << 2
@@ -111,15 +121,15 @@ class PublicFlags(Enum):
     BOT_HTTP_INTERACTIONS = 1 << 19
     ACTIVE_DEVELOPER = 1 << 22
 
-class ChannelFlags(Enum):
+class ChannelFlags(FemcordEnum):
     PINNED = 1 << 1
     REQUIRE_TAG = 1 << 4
 
-class SortOrderTypes(Enum):
+class SortOrderTypes(FemcordEnum):
     LATEST_ACTIVITY = 0
     CREATION_DATE = 1
 
-class ChannelTypes(Enum):
+class ChannelTypes(FemcordEnum):
     NONE = None
     GUILD_TEXT = 0
     DM = 1
@@ -136,7 +146,7 @@ class ChannelTypes(Enum):
     GUILD_FORUM = 15
     GUILD_MEDIA = 16
 
-class MessageTypes(Enum):
+class MessageTypes(FemcordEnum):
     NONE = None
     DEFAULT = 0
     RECIPIENT_ADD = 1
@@ -188,11 +198,11 @@ class MessageTypes(Enum):
     CHANGELOG = 47
     NITRO_NOTIFICATION = 48
 
-class MessageReferences(Enum):
+class MessageReferences(FemcordEnum):
     DEFAULT = 0
     FORWARD = 1
 
-class ComponentTypes(Enum):
+class ComponentTypes(FemcordEnum):
     ACTION_ROW = 1
     BUTTON = 2
     SELECT_MENU = 3
@@ -208,8 +218,9 @@ class ComponentTypes(Enum):
     FILE = 13
     SEPARATOR = 14
     CONTAINER = 17
+    LABEL = 18
 
-class ButtonStyles(Enum):
+class ButtonStyles(FemcordEnum):
     PRIMARY = 1
     SECONDARY = 2
     SUCCESS = 3
@@ -217,18 +228,18 @@ class ButtonStyles(Enum):
     LINK = 5
     PREMIUM = 6
 
-class TextInputStyles(Enum):
+class TextInputStyles(FemcordEnum):
     SHORT = 1
     PARAGRAPH = 2
 
-class InteractionTypes(Enum):
+class InteractionTypes(FemcordEnum):
     PING = 1
     APPLICATION_COMMAND = 2
     MESSAGE_COMPONENT = 3
     APPLICATION_COMMAND_AUTOCOMPLETE = 4
     MODAL_SUBMIT = 5
 
-class InteractionCallbackTypes(Enum):
+class InteractionCallbackTypes(FemcordEnum):
     PONG = 1
     CHANNEL_MESSAGE_WITH_SOURCE = 4
     DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE = 5
@@ -239,12 +250,22 @@ class InteractionCallbackTypes(Enum):
     PREMIUM_REQUIRED = 11
     LAUNCH_ACTIVITY = 12
 
-class ApplicationCommandTypes(Enum):
+class InteractionContextTypes(FemcordEnum):
+    GUILD = 0
+    BOT_DM = 1
+    PRIVATE_CHANNEL = 2
+
+class ApplicationCommandTypes(FemcordEnum):
     CHAT_INPUT = 1
     USER = 2
     MESSAGE = 3
+    PRIMARY_ENTRY_POINT = 4
 
-class CommandOptionTypes(Enum):
+class ApplicationIntegrationTypes(FemcordEnum):
+    GUILD_INSTALL = 0
+    USER_INSTALL = 1
+
+class CommandOptionTypes(FemcordEnum):
     SUB_COMMAND = 1
     SUB_COMMAND_GROUP = 2
     STRING = 3
@@ -257,21 +278,21 @@ class CommandOptionTypes(Enum):
     NUMBER = 10
     ATTACHMENT = 11
 
-class StickerFormatTypes(Enum):
+class StickerFormatTypes(FemcordEnum):
     PNG = 1
     APNG = 2
     LOTTIE = 3
     GIF = 4
 
-class StickerTypes(Enum):
+class StickerTypes(FemcordEnum):
     STANDARD = 1
     GUILD = 2
 
-class OverwriteTypes(Enum):
+class OverwriteTypes(FemcordEnum):
     ROLE = 0
     MEMBER = 1
 
-class MessageFlags(Enum):
+class MessageFlags(FemcordEnum):
     CROSSPOSTED = 1 << 0
     IS_CROSSPOST = 1 << 1
     SUPPRESS_EMBEDS = 1 << 2
@@ -286,37 +307,37 @@ class MessageFlags(Enum):
     HAS_SNAPSHOT = 1 << 14
     IS_COMPONENTS_V2 = 1 << 15
 
-class VerificationLevel(Enum):
+class VerificationLevel(FemcordEnum):
     NONE = 0
     LOW = 1
     MEDIUM = 2
     HIGH = 3
     VERY_HIGH = 4
 
-class DefaultMessageNotification(Enum):
+class DefaultMessageNotification(FemcordEnum):
     ALL_MESSAGES = 0
     ONLY_MENTIONS = 1
 
-class ExplicitContentFilter(Enum):
+class ExplicitContentFilter(FemcordEnum):
     DISABLED = 0
     MEMBERS_WITHOUT_ROLES = 1
     ALL_MEMBERS = 2
 
-class MfaLevel(Enum):
+class MfaLevel(FemcordEnum):
     NONE = 0
     ELEVATED = 1
 
-class NSFWLevel(Enum):
+class NSFWLevel(FemcordEnum):
     DEFAULT = 0
     EXPLICIT = 1
     SAFE = 2
     AGE_RESTRICTED = 3
 
-class PrivacyLevel(Enum):
+class PrivacyLevel(FemcordEnum):
     PUBLIC = 1
     GUILD_ONLY = 2
 
-class Opcodes(Enum):
+class Opcodes(FemcordEnum):
     DISPATCH = 0
     HEARTBEAT = 1
     IDENTIFY = 2
@@ -330,26 +351,26 @@ class Opcodes(Enum):
     HEARTBEAT_ACK = 11
     SEARCH_RECENT_MEMBERS = 35
 
-class PremiumTypes(Enum):
+class PremiumTypes(FemcordEnum):
     NONE = 0
     NITRO_CLASSIC = 1
     NITRO = 2
     NITRO_BASIC = 3
 
-class PremiumTier(Enum):
+class PremiumTier(FemcordEnum):
     NONE = 0
     TIER_1 = 1
     TIER_2 = 2
     TIER_3 = 3
 
-class StatusTypes(Enum):
+class StatusTypes(FemcordEnum):
     ONLINE = "online"
     DND = "dnd"
     IDLE = "idle"
     INVISIBLE = "invisible"
     OFFLINE = "offline"
 
-class ActivityTypes(Enum):
+class ActivityTypes(FemcordEnum):
     PLAYING = 0
     STREAMING = 1
     LISTENING = 2
@@ -358,7 +379,7 @@ class ActivityTypes(Enum):
     COMPETING = 5
     HANGSTATUS = 6
 
-class ActivityFlags(Enum):
+class ActivityFlags(FemcordEnum):
     INSTANCE = 1 << 0
     JOIN = 1 << 1
     SPECTATE = 1 << 2
@@ -369,16 +390,91 @@ class ActivityFlags(Enum):
     PARTY_PRIVACY_VOICE_CHANNEL = 1 << 7
     EMBEDDED = 1 << 8
 
-class InviteTypes(Enum):
+class InviteTypes(FemcordEnum):
     GUILD = 0
     GROUP_DM = 1
     FRIEND = 2
 
-class SelectDefaultValueTypes(Enum):
+class SelectDefaultValueTypes(FemcordEnum):
     USER = "user"
     ROLE = "role"
     CHANNEL = "channel"
 
-class PaddingSizes(Enum):
+class PaddingSizes(FemcordEnum):
     SMALL = 1
     LARGE = 2
+
+class AuditLogEvents(FemcordEnum):
+    GUILD_UPDATE = 1
+    CHANNEL_CREATE = 10
+    CHANNEL_UPDATE = 11
+    CHANNEL_DELETE = 12
+    CHANNEL_OVERWRITE_CREATE = 13
+    CHANNEL_OVERWRITE_UPDATE = 14
+    CHANNEL_OVERWRITE_DELETE = 15
+    MEMBER_KICK = 20
+    MEMBER_PRUNE = 21
+    MEMBER_BAN_ADD = 22
+    MEMBER_BAN_REMOVE = 23
+    MEMBER_UPDATE = 24
+    MEMBER_ROLE_UPDATE = 25
+    MEMBER_MOVE = 26
+    MEMBER_DISCONNECT = 27
+    BOT_ADD = 28
+    ROLE_CREATE = 30
+    ROLE_UPDATE = 31
+    ROLE_DELETE = 32
+    INVITE_CREATE = 40
+    INVITE_UPDATE = 41
+    INVITE_DELETE = 42
+    WEBHOOK_CREATE = 50
+    WEBHOOK_UPDATE = 51
+    WEBHOOK_DELETE = 52
+    EMOJI_CREATE = 60
+    EMOJI_UPDATE = 61
+    EMOJI_DELETE = 62
+    MESSAGE_DELETE = 72
+    MESSAGE_BULK_DELETE = 73
+    MESSAGE_PIN = 74
+    MESSAGE_UNPIN = 75
+    INTEGRATION_CREATE = 80
+    INTEGRATION_UPDATE = 81
+    INTEGRATION_DELETE = 82
+    STAGE_INSTANCE_CREATE = 83
+    STAGE_INSTANCE_UPDATE = 84
+    STAGE_INSTANCE_DELETE = 85
+    STICKER_CREATE = 90
+    STICKER_UPDATE = 91
+    STICKER_DELETE = 92
+    GUILD_SCHEDULED_EVENT_CREATE = 100
+    GUILD_SCHEDULED_EVENT_UPDATE = 101
+    GUILD_SCHEDULED_EVENT_DELETE = 102
+    THREAD_CREATE = 110
+    THREAD_UPDATE = 111
+    THREAD_DELETE = 112
+    APPLICATION_COMMAND_PERMISSION_UPDATE = 121
+    SOUNDBOARD_SOUND_CREATE = 130
+    SOUNDBOARD_SOUND_UPDATE = 131
+    SOUNDBOARD_SOUND_DELETE = 132
+    AUTO_MODERATION_RULE_CREATE = 140
+    AUTO_MODERATION_RULE_UPDATE = 141
+    AUTO_MODERATION_RULE_DELETE = 142
+    AUTO_MODERATION_BLOCK_MESSAGE = 143
+    AUTO_MODERATION_FLAG_TO_CHANNEL = 144
+    AUTO_MODERATION_USER_COMMUNICATION_DISABLED = 145
+    CREATOR_MONETIZATION_REQUEST_CREATED = 150
+    CREATOR_MONETIZATION_TERMS_ACCEPTED = 151
+    ONBOARDING_PROMPT_CREATE = 163
+    ONBOARDING_PROMPT_UPDATE = 164
+    ONBOARDING_PROMPT_DELETE = 165
+    ONBOARDING_CREATE = 166
+    ONBOARDING_UPDATE = 167
+    HOME_SETTINGS_CREATE = 190
+    HOME_SETTINGS_UPDATE = 191
+    VOICE_CHANNEL_STATUS_UPDATE = 192
+    VOICE_CHANNEL_STATUS_REMOVE = 193
+    UNKNOWN = -1
+
+    @classmethod
+    def _missing_(cls, value):
+        return cls.UNKNOWN

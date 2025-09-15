@@ -143,7 +143,7 @@ class Gateway:
                         listener[1].set_result(args)
                         return self.__client.waiting_for.remove(listener)
                 except Exception:
-                    pass
+                    traceback.print_exc()
 
         for listener in self.__client.listeners:
             if listener.__name__ == "on_" + event:
@@ -321,7 +321,7 @@ class Gateway:
 
     async def create_application_emoji(self, name: str, image: bytes) -> Emoji:
         image = f"data:{get_mime(image)};base64," + base64.b64encode(image).decode()
-        emoji = await Emoji.from_raw(self.__client, await self.__http.create_application_emoji(name, image))
+        emoji = await Emoji.from_raw(self.__client, await self.__http.create_application_emoji(self.bot_user.id, name, image))
         self.emojis.append(emoji)
         return emoji
 

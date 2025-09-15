@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 
 from typing import Optional
 
@@ -67,8 +67,8 @@ class Embed:
 
     def set_timestamp(self, timestamp: datetime | float | int) -> "Embed":
         if isinstance(timestamp, (float, int)):
-            timestamp = datetime.fromtimestamp(timestamp)
-        self.timestamp = (timestamp - timedelta(hours=1)).isoformat()
+            timestamp = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        self.timestamp = (timestamp).isoformat()
 
         return self
 

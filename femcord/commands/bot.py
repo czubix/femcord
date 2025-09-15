@@ -73,6 +73,8 @@ class Bot(Client):
         self.before_call_functions: list[BeforeAfterFunction] = []
         self.after_call_functions: list[BeforeAfterFunction] = []
 
+        self._entry_point = None
+
         @self.event
         async def on_interaction_create(interaction: "Interaction") -> None:
             if interaction.type is not InteractionTypes.APPLICATION_COMMAND:
@@ -98,6 +100,14 @@ class Bot(Client):
 
     def after_call(self, func: BeforeAfterFunction) -> None:
         self.after_call_functions.append(func)
+
+    def add_entry_point(self, name: str, description: Optional[str] = None) -> None:
+        self._entry_point = {
+            "name": name,
+            "description": description or name,
+            "type": 4,
+            "handler": 2
+        }
 
     async def register_app_commands(self) -> None:
         commands = []
@@ -157,12 +167,12 @@ class Bot(Client):
                     } | (argument.annotation.fields if isinstance(argument.annotation, AppCommandAttribute) else {})
                     for argument in command_arguments
                 ],
-                "integration_types": [0, 1],
-                "contexts": [0, 1, 2],
+                "integration_types": [integration_type.value for integration_type in command.integration_types],
+                "contexts": [context_type.value for context_type in command.interaction_context_types],
                 "nsfw": command.nsfw
             })
 
-        await self.http.request(Route("PUT", "applications", self.gateway.bot_user.id, "commands"), data=commands)
+        await self.http.request(Route("PUT", "applications", self.gateway.bot_user.id, "commands"), data=commands + ([self._entry_point] if self._entry_point else []))
 
     def command(self, **kwargs) -> Callable[[Callable[..., None]], Command]:
         def decorator(func: Callable[..., None]) -> Command:

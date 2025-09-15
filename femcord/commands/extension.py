@@ -16,19 +16,41 @@ limitations under the License.
 
 from .enums import CommandTypes
 
-from ..enums import ApplicationCommandTypes
+from ..enums import ApplicationCommandTypes, ApplicationIntegrationTypes, InteractionContextTypes
 
 from ..utils import get_index
 
-from typing import Callable, Awaitable, Optional, Any, NoReturn, TYPE_CHECKING
+from typing import Callable, Awaitable, Optional, Any, NoReturn, TypedDict, NotRequired, Unpack, TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from . import Context, AppContext
 
 Callback = Callable[..., Awaitable[None]]
 
+class CommandKwargs(TypedDict):
+    type: CommandTypes
+    parent: NotRequired[str]
+    cog: NotRequired["Cog"]
+    callback: Callback
+    name: str
+    description: str
+    usage: str
+    enabled: bool
+    hidden: bool
+    aliases: list[str]
+    guild_id: str
+    other: dict[str, Any]
+
+class AppCommandKwargs(TypedDict):
+    cog: "Cog"
+    type: ApplicationCommandTypes
+    callback: Callback
+    name: str
+    description: str
+    nsfw: bool
+
 class Command:
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Unpack[CommandKwargs]) -> None:
         self.type: CommandTypes = kwargs["type"]
         self.parent: Optional[str] = kwargs.get("parent", None)
         self.cog: Optional[Cog] = kwargs.get("cog", None)
@@ -97,6 +119,7 @@ class Group(Command):
 
         for command in self.subcommands:
             if command.type == CommandTypes.GROUP:
+                command = cast(Group, command)
                 commands.extend(command.walk_subcommands())
 
             commands.append(command)
@@ -112,6 +135,16 @@ class AppCommand:
         self.name: str = kwargs.get("name") or self.callback.__name__
         self.description: Optional[str] = kwargs.get("description")
         self.nsfw: bool = kwargs.get("nsfw", False)
+        self.integration_types: list[ApplicationIntegrationTypes] = kwargs.get("integration_types", [
+            ApplicationIntegrationTypes.GUILD_INSTALL,
+            ApplicationIntegrationTypes.USER_INSTALL
+        ])
+        self.interaction_context_types: list[InteractionContextTypes] = kwargs.get("interaction_context_types", [
+            InteractionContextTypes.GUILD,
+            InteractionContextTypes.BOT_DM,
+            InteractionContextTypes.PRIVATE_CHANNEL
+        ])
+        self.guild_id: Optional[str] = kwargs.get("guild_id", None)
 
     async def __call__(self, context: "AppContext", *args, **kwargs) -> None:
         if self.cog is not None:
@@ -159,6 +192,7 @@ class Cog:
 
         for command in self.commands:
             if command.type == CommandTypes.GROUP:
+                command = cast(Group, command)
                 commands.extend(command.walk_subcommands())
 
             commands.append(command)

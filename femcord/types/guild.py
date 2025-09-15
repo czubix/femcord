@@ -17,7 +17,7 @@ limitations under the License.
 from .dataclass import dataclass
 
 from ..http import Route
-from ..enums import VerificationLevel, DefaultMessageNotification, ExplicitContentFilter, NSFWLevel, MfaLevel
+from ..enums import VerificationLevel, DefaultMessageNotification, ExplicitContentFilter, NSFWLevel, MfaLevel, AuditLogEvents
 from ..utils import get_index, parse_time, time_from_snowflake
 from ..errors import InvalidArgument
 
@@ -30,7 +30,7 @@ from .member import Member
 
 from datetime import datetime
 
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -49,7 +49,6 @@ class WelcomeScreenChannel:
     @classmethod
     async def from_raw(cls, client, channels: list[Channel], channel: dict):
         channel["channel"] = [_channel := [_channel for _channel in channels if _channel.id == channel["channel_id"]], _channel if len(_channel) >= 1 else None][1]
-
         return cls(client, **channel)
 
 @dataclass
@@ -63,6 +62,174 @@ class WelcomeScreen:
         welcomescreen["welcome_channels"] = [await WelcomeScreenChannel.from_raw(client, channels, channel) for channel in welcomescreen["welcome_channels"]]
 
         return cls(client, **welcomescreen)
+
+@dataclass
+class AuditLogChange:
+    """Represents a change in an audit log entry."""
+    __client: "Client"
+    key: str
+    new_value: Optional[Any] = None
+    old_value: Optional[Any] = None
+
+    @classmethod
+    def from_raw(cls, client, change: dict) -> "AuditLogChange":
+        change_data = change.copy()
+        return cls(client, **change_data)
+
+    @property
+    def is_reset(self) -> bool:
+        """Returns True if the property was reset or set to null."""
+        return "new_value" not in self.__dict__ and "old_value" in self.__dict__
+
+    @property
+    def was_previously_null(self) -> bool:
+        """Returns True if the property was previously null."""
+        return "old_value" not in self.__dict__ and "new_value" in self.__dict__
+
+    @property
+    def is_role_change(self) -> bool:
+        """Returns True if this is a partial role change ($add or $remove)."""
+        return self.key in ("$add", "$remove")
+
+    @property
+    def is_command_permission_change(self) -> bool:
+        """Returns True if this is a command permission change (snowflake as key)."""
+        return self.key.isdigit() and len(self.key) >= 17  # Discord snowflake length
+
+    def get_role_changes(self) -> Optional[list[dict]]:
+        """For partial role changes, returns the array of role objects."""
+        if self.is_role_change and self.new_value:
+            return self.new_value
+        return None
+
+    def get_command_permission_entity_id(self) -> Optional[str]:
+        """For command permission changes, returns the entity ID (role, channel, or user)."""
+        if self.is_command_permission_change:
+            return self.key
+        return None
+
+@dataclass
+class AuditLogEntry:
+    __client: "Client"
+    id: str
+    target_id: str
+    changes: list[AuditLogChange]
+    user_id: str
+    action_type: AuditLogEvents
+    options: Optional[dict] = None
+    reason: Optional[str] = None
+
+    @classmethod
+    async def from_raw(cls, client, entry: dict) -> "AuditLogEntry":
+        entry["action_type"] = AuditLogEvents(entry["action_type"])
+
+        if "changes" in entry:
+            entry["changes"] = [AuditLogChange.from_raw(client, change) for change in entry["changes"]]
+        else:
+            entry["changes"] = []
+
+        if "options" not in entry:
+            entry["options"] = None
+
+        return cls(client, **entry)
+
+    @property
+    def application_id(self) -> Optional[str]:
+        """ID of the app whose permissions were targeted (APPLICATION_COMMAND_PERMISSION_UPDATE)"""
+        return self.options.get("application_id") if self.options else None
+
+    @property
+    def auto_moderation_rule_name(self) -> Optional[str]:
+        """Name of the Auto Moderation rule that was triggered"""
+        return self.options.get("auto_moderation_rule_name") if self.options else None
+
+    @property
+    def auto_moderation_rule_trigger_type(self) -> Optional[str]:
+        """Trigger type of the Auto Moderation rule that was triggered"""
+        return self.options.get("auto_moderation_rule_trigger_type") if self.options else None
+
+    @property
+    def channel_id(self) -> Optional[str]:
+        """Channel in which the entities were targeted"""
+        return self.options.get("channel_id") if self.options else None
+
+    @property
+    def count(self) -> Optional[str]:
+        """Number of entities that were targeted"""
+        return self.options.get("count") if self.options else None
+
+    @property
+    def delete_member_days(self) -> Optional[str]:
+        """Number of days after which inactive members were kicked"""
+        return self.options.get("delete_member_days") if self.options else None
+
+    @property
+    def option_id(self) -> Optional[str]:
+        """ID of the overwritten entity (using option_id to avoid conflict with class id)"""
+        return self.options.get("id") if self.options else None
+
+    @property
+    def members_removed(self) -> Optional[str]:
+        """Number of members removed by the prune"""
+        return self.options.get("members_removed") if self.options else None
+
+    @property
+    def message_id(self) -> Optional[str]:
+        """ID of the message that was targeted"""
+        return self.options.get("message_id") if self.options else None
+
+    @property
+    def role_name(self) -> Optional[str]:
+        """Name of the role if type is "0" (not present if type is "1")"""
+        return self.options.get("role_name") if self.options else None
+
+    @property
+    def overwrite_type(self) -> Optional[str]:
+        """Type of overwritten entity - role ("0") or member ("1")"""
+        return self.options.get("type") if self.options else None
+
+    @property
+    def integration_type(self) -> Optional[str]:
+        """The type of integration which performed the action"""
+        return self.options.get("integration_type") if self.options else None
+
+    def get_change(self, key: str) -> Optional[AuditLogChange]:
+        """Get a specific change by its key."""
+        for change in self.changes:
+            if change.key == key:
+                return change
+        return None
+
+    def get_changes_by_type(self, change_type: str) -> list[AuditLogChange]:
+        """Get all changes of a specific type (e.g., '$add', '$remove')."""
+        return [change for change in self.changes if change.key == change_type]
+
+    def get_role_additions(self) -> list[dict]:
+        """Get all role additions from partial role changes."""
+        add_change = self.get_change("$add")
+        role_changes = add_change.get_role_changes() if add_change else None
+        return role_changes if role_changes is not None else []
+
+    def get_role_removals(self) -> list[dict]:
+        """Get all role removals from partial role changes."""
+        remove_change = self.get_change("$remove")
+        role_changes = remove_change.get_role_changes() if remove_change else None
+        return role_changes if role_changes is not None else []
+
+    def get_command_permission_changes(self) -> list[AuditLogChange]:
+        """Get all command permission changes (where key is a snowflake)."""
+        return [change for change in self.changes if change.is_command_permission_change]
+
+    def has_field_change(self, field_name: str) -> bool:
+        """Check if a specific field was changed."""
+        return any(change.key == field_name for change in self.changes)
+
+    def get_field_change_value(self, field_name: str, get_new: bool = True) -> Optional[Any]:
+        """Get the new or old value for a specific field change."""
+        change = self.get_change(field_name)
+        if change:
+            return change.new_value if get_new else change.old_value
+        return None
 
 @dataclass
 class Guild:
@@ -192,6 +359,10 @@ class Guild:
 
         return cls(client, **guild)
 
+    @property
+    def default_role(self) -> Role:
+        return [role for role in self.roles if role.id == self.id][0]
+
     def get_channel(self, channel_id_or_name: str) -> Optional[Channel]:
         if not channel_id_or_name:
             return
@@ -278,3 +449,7 @@ class Guild:
 
     async def unban(self, member_id: str, reason: Optional[str] = None) -> dict | str:
         return await self.__client.http.unban_member(self.id, member_id, reason=reason)
+
+    async def audit_log(self, limit: int = 100, before: Optional[str] = None, after: Optional[str] = None) -> list[AuditLogEntry]:
+        response = await self.__client.http.audit_log(self.id, limit=limit, before=before, after=after)
+        return [await AuditLogEntry.from_raw(self.__client, entry) for entry in response["audit_log_entries"]]

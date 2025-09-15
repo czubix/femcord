@@ -35,7 +35,7 @@ class Context:
         self.channel = message.channel or message.thread
 
         if isinstance(self.channel, str):
-            self.channel = self.guild.get_channel(self.channel)
+            self.channel: "Channel" = self.guild.get_channel(self.channel) # type: ignore
 
         self.message = message
 
@@ -49,10 +49,10 @@ class Context:
         self.send = self.channel.send
         self.reply = self.message.reply
 
-    def __str__(self) -> None:
+    def __str__(self) -> str:
         return "<Context guild={!r} channel={!r} message={!r} command={!r} arguments={!r}>".format(self.guild, self.channel, self.message, self.command, self.arguments)
 
-    def __repr__(self) -> None:
+    def __repr__(self) -> str:
         return "<Context guild={!r} channel={!r} message={!r} command={!r} arguments={!r}>".format(self.guild, self.channel, self.message, self.command, self.arguments)
 
 class AppContext:
@@ -80,10 +80,10 @@ class AppContext:
         self.reply = self.send
         self.edit = self.interaction.edit
 
-    def __str__(self) -> None:
+    def __str__(self) -> str:
         return "<AppContext guild={!r} channel={!r} interaction={!r}>".format(self.guild, self.channel, self.interaction)
 
-    def __repr__(self) -> None:
+    def __repr__(self) -> str:
         return "<AppContext guild={!r} channel={!r} interaction={!r}>".format(self.guild, self.channel, self.interaction)
 
     def think(self) -> Awaitable[None]:

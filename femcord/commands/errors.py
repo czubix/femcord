@@ -15,13 +15,13 @@ limitations under the License.
 """
 
 class CommandError(Exception):
-    def __init__(self, description, command):
+    def __init__(self, description, command) -> None:
         super().__init__(description)
 
         self.command = command
 
 class CommandArgumentError(CommandError):
-    def __init__(self, description, command, command_arguments, arguments, argument):
+    def __init__(self, description, command, command_arguments, arguments, argument) -> None:
         super().__init__(description, command)
 
         self.command_arguments = command_arguments

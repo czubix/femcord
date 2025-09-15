@@ -60,10 +60,13 @@ class HTTP:
         self.bot: bool = client.bot
         self.routes: dict[Route, asyncio.Lock] = {}
 
-    async def request(self, route: Route, *, headers: Optional[dict] = {}, data: Optional[dict] = None, params: Optional[dict] = None, files: Optional[list[str | bytes]] = None) -> dict | str:
+    async def request(self, route: Route, *, headers: Optional[dict] = {}, data: Optional[dict | FormData] = None, params: Optional[dict] = None, files: Optional[list[str | bytes]] = None) -> dict | str:
         headers.update({"authorization": ("Bot " if self.bot is True else "") + self.token, "user-agent": "femcord"})
 
-        kwargs = dict(json=data)
+        if isinstance(data, FormData):
+            kwargs = dict(data=data)
+        else:
+            kwargs = dict(json=data)
 
         if params is not None:
             kwargs["params"] = params
@@ -73,7 +76,7 @@ class HTTP:
             form.add_field("payload_json", json.dumps(data))
 
             for index, file in enumerate(files):
-                form.add_field("file[%s]" % index, file[1], content_type="application/octet-stream", filename=file[0])
+                form.add_field("files[%s]" % index, file[1], content_type="application/octet-stream", filename=file[0])
 
             kwargs = dict(data=form)
 
@@ -197,6 +200,9 @@ class HTTP:
 
     def delete_message(self, channel_id: str, message_id: str) -> Awaitable[dict]:
         return self.request(Route("DELETE", "channels", channel_id, "messages", message_id))
+
+    def set_channel_voice_status(self, channel_id: str, status: str) -> Awaitable[dict]:
+        return self.request(Route("PUT", "channels", channel_id, "voice-status"), data={"status": status})
 
     def interaction_callback(self, interaction_id: str, interaction_token: str, interaction_type: InteractionCallbackTypes, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: str = None, embed: Embed = None, embeds: Sequence[Embed] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> Awaitable[dict]:
         other = other or {}
@@ -352,18 +358,20 @@ class HTTP:
         return self.request(Route("DELETE", "guilds", guild_id, "bans", member_id), headers=headers)
 
     def modify_member(self, guild_id: str, member_id: str, *, nick: Optional[str] = None, roles: Optional[list[str]] = None, mute: Optional[bool] = None, deaf: Optional[bool] = None, channel_id: Optional[str] = None, communication_disabled_until: Optional[int] = None) -> Awaitable[dict]:
-        data = {"nick": nick}
+        data: dict = {}
 
-        if roles:
+        if nick is not None:
+            data["nick"] = nick
+        if roles is not None:
             data["roles"] = roles
-        if mute:
+        if mute is not None:
             data["mute"] = mute
-        if deaf:
+        if deaf is not None:
             data["deaf"] = deaf
-        if channel_id:
-            data["channel_id"] = channel_id
-        if communication_disabled_until:
+        if communication_disabled_until is not None:
             data["communication_disabled_until"] = communication_disabled_until
+
+        data["channel_id"] = channel_id
 
         return self.request(Route("PATCH", "guilds", guild_id, "members", member_id), data=data)
 
@@ -395,3 +403,13 @@ class HTTP:
 
     def open_dm(self, user_id: str) -> Awaitable[dict]:
         return self.request(Route("POST", "users", "@me", "channels"), data={"recipient_id": user_id})
+
+    def audit_log(self, guild_id: str, limit: int = 100, before: Optional[str] = None, after: Optional[str] = None) -> Awaitable[list]:
+        params = {"limit": limit}
+
+        if before is not None:
+            params["before"] = before
+        if after is not None:
+            params["after"] = after
+
+        return self.request(Route("GET", "guilds", guild_id, "audit-logs"), params=params)

@@ -16,13 +16,13 @@ limitations under the License.
 
 from .enums import ComponentTypes, ButtonStyles, TextInputStyles, PaddingSizes, SelectDefaultValueTypes
 
-from typing import Unpack, Optional, Self, TypedDict, NotRequired, TYPE_CHECKING
+from typing import Unpack, Union, Optional, Self, Sequence, TypedDict, NotRequired, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .types import Emoji
 
 class Components(list):
-    def __init__(self, *, title: Optional[str] = None, custom_id: Optional[str] = None, components: Optional[list["BaseComponent"]] = None) -> None:
+    def __init__(self, *, title: Optional[str] = None, custom_id: Optional[str] = None, components: Optional[Sequence["BaseComponent"]] = None) -> None:
         if title is not None:
             self.title = title
         if custom_id is not None:
@@ -75,7 +75,7 @@ class Button(BaseComponent):
         if (label := kwargs.get("label")):
             self["label"] = label
         if (emoji := kwargs.get("emoji")):
-            self["emoji"] = {"id": emoji.id, "name": emoji.name}
+            self["emoji"] = {"id": emoji.id, "name": emoji.name, "animated": emoji.animated}
         if (custom_id := kwargs.get("custom_id")):
             self["custom_id"] = custom_id
         if (sku_id := kwargs.get("sku_id")):
@@ -99,7 +99,7 @@ class StringSelectOption(dict):
         if (description := kwargs.get("description")):
             self["description"] = description
         if (emoji := kwargs.get("emoji")):
-            self["emoji"] = {"id": emoji.id, "name": emoji.name}
+            self["emoji"] = {"id": emoji.id, "name": emoji.name, "animated": emoji.animated}
         if (default := kwargs.get("default")):
             self["default"] = default
 
@@ -134,7 +134,6 @@ class StringSelect(BaseComponent):
 class TextInputKwargs(BaseComponentKwargs):
     custom_id: str
     style: TextInputStyles
-    label: str
     min_length: NotRequired[int]
     max_length: NotRequired[int]
     required: NotRequired[bool]
@@ -142,13 +141,12 @@ class TextInputKwargs(BaseComponentKwargs):
     placeholder: NotRequired[str]
 
 class TextInput(BaseComponent):
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Unpack[TextInputKwargs]) -> None:
         super().__init__(id=kwargs.get("id"))
 
         self["type"] = ComponentTypes.TEXT_INPUT.value
         self["custom_id"] = kwargs["custom_id"]
         self["style"] = kwargs["style"].value
-        self["label"] = kwargs["label"]
         if (min_length := kwargs.get("min_length")):
             self["min_length"] = min_length
         if (max_length := kwargs.get("max_length")):
@@ -218,22 +216,6 @@ class ChannelSelect(Select):
 
         self["type"] = ComponentTypes.CHANNEL_SELECT.value
 
-class SectionKwargs(BaseComponentKwargs):
-    components: NotRequired[list[BaseComponent]]
-    accessory: NotRequired[BaseComponent]
-
-class Section(BaseComponent):
-    def __init__(self, **kwargs: Unpack[SectionKwargs]) -> None:
-        super().__init__(id=kwargs.get("id"))
-
-        self["type"] = ComponentTypes.SECTION.value
-        self["components"] = kwargs.get("components", [])
-        self["accessory"] = kwargs.get("accessory", {})
-
-    def set_accessory(self, accessory: BaseComponent) -> Self:
-        self["accessory"] = accessory
-        return self
-
 class TextDisplayKwargs(BaseComponentKwargs):
     content: str
 
@@ -299,6 +281,22 @@ class File(BaseComponent):
         if (spoiler := kwargs.get("spoiler")):
             self["spoiler"] = spoiler
 
+class SectionKwargs(BaseComponentKwargs):
+    components: NotRequired[list[BaseComponent]]
+    accessory: NotRequired[Union[Button, Thumbnail]]
+
+class Section(BaseComponent):
+    def __init__(self, **kwargs: Unpack[SectionKwargs]) -> None:
+        super().__init__(id=kwargs.get("id"))
+
+        self["type"] = ComponentTypes.SECTION.value
+        self["components"] = kwargs.get("components", [])
+        self["accessory"] = kwargs.get("accessory", {})
+
+    def set_accessory(self, accessory: BaseComponent) -> Self:
+        self["accessory"] = accessory
+        return self
+
 class SeparatorKwargs(BaseComponentKwargs):
     divider: NotRequired[bool]
     spacing: NotRequired[PaddingSizes]
@@ -328,3 +326,19 @@ class Container(BaseComponent):
             self["accent_color"] = accent_color
         if (spoiler := kwargs.get("spoiler")):
             self["spoiler"] = spoiler
+
+class LabelKwargs(BaseComponentKwargs):
+    label: str
+    description: NotRequired[str]
+    component: NotRequired[Union[UserSelect, RoleSelect, MentionableSelect, ChannelSelect, StringSelect, TextInput]]
+
+class Label(BaseComponent):
+    def __init__(self, **kwargs: Unpack[LabelKwargs]) -> None:
+        super().__init__(id=kwargs.get("id"))
+
+        self["type"] = ComponentTypes.LABEL.value
+        self["label"] = kwargs["label"]
+        if (description := kwargs.get("description")):
+            self["description"] = description
+        if (component := kwargs.get("component")):
+            self["component"] = component

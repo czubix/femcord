@@ -55,8 +55,7 @@ def has_permissions(*permissions) -> Callable:
                     return True
                 if not ctx.member.permissions.has(permission):
                     return False
-
-                return True
+            return True
 
         return check(check_function, error=NoPermission)(func)
 

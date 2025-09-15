@@ -41,6 +41,7 @@ class EmbedImage:
     placeholder: Any = None
     flags: int = None
     description: str = None
+    content_type: object = None
 
 @dataclass
 class EmbedThumbnail:
@@ -52,6 +53,7 @@ class EmbedThumbnail:
     placeholder: Any = None
     flags: int = None
     description: str = None
+    content_type: object = None
 
 @dataclass
 class EmbedVideo:
@@ -63,6 +65,7 @@ class EmbedVideo:
     placeholder: Any = None
     flags: int = None
     description: str = None
+    content_type: object = None
 
 @dataclass
 class EmbedProvider:

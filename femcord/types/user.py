@@ -36,16 +36,28 @@ if TYPE_CHECKING:
 CDN_URL = "https://cdn.discordapp.com"
 
 @dataclass
+class PrimaryGuild:
+    identity_guild_id: str
+    identity_enabled: bool
+    tag: str
+    badge: str
+
+    @property
+    def badge_url(self) -> str | None:
+        if self.badge:
+            return CDN_URL + "/clan-badges/" + self.identity_guild_id + "/" + self.badge + ".png"
+
+@dataclass
 class User:
     __client: "Client"
     id: str
     username: str
     avatar: str
-    avatar_url: str
     created_at: datetime
     global_name: str = None
     public_flags: Sequence[PublicFlags] = None
     bot: bool = None
+    primary_guild: PrimaryGuild = None
     system: bool = None
     banner: str = None
     accent_color: int = None
@@ -82,16 +94,22 @@ class User:
 
         return CDN_URL + "/avatars/%s/%s.%s" % (self.id, self.avatar, extension)
 
+    @property
+    def avatar_url(self) -> str:
+        if self.avatar is None:
+            return CDN_URL + "/embed/avatars/%s.png" % ((int(self.id) >> 22) % 6)
+        return CDN_URL + "/avatars/%s/%s.%s" % (self.id, self.avatar, "gif" if self.avatar and self.avatar[:2] == "a_" else "png")
+
+    @property
+    def banner_url(self) -> str:
+        return CDN_URL + "/banners/%s/%s.%s?size=512" % (self.id, self.banner, "gif" if self.banner and self.banner[:2] == "a_" else "png")
+
     @classmethod
     async def from_raw(cls, client, user):
-        avatar_url = CDN_URL + "/avatars/%s/%s.%s" % (user["id"], user["avatar"], "gif" if user["avatar"] and user["avatar"][:2] == "a_" else "png")
-
-        if user["avatar"] is None:
-            avatar_url = CDN_URL + "/embed/avatars/%s.png" % ((int(user["id"]) >> 22) % 6)
-
-        user["avatar_url"] = avatar_url
         user["created_at"] = time_from_snowflake(user["id"])
 
+        if "primary_guild" in user and user["primary_guild"]:
+            user["primary_guild"] = PrimaryGuild(**user["primary_guild"])
         if "public_flags" in user:
             user["public_flags"] = [flag for flag in PublicFlags if user["public_flags"] & flag.value == flag.value]
         if "flags" in user:
@@ -112,7 +130,7 @@ class User:
 
         return ctx.bot.gateway.get_user(argument)
 
-    async def send(self, content: Optional[str] = None, *, embed: Optional["Embed"] = None, embeds: Optional[Sequence["Embed"]] = None, components: Optional["Components"] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = {}) -> Message:
+    async def send(self, content: Optional[str] = None, *, embed: Optional["Embed"] = None, embeds: Optional[Sequence["Embed"]] = None, components: Optional["Components"] = None, files: Optional[list[tuple[str, bytes]]] = [], mentions: Optional[list] = [], flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = {}) -> Message:
         if self.dm is None:
             response = await self.__client.http.open_dm(self.id)
             self.dm = await Channel.from_raw(self.__client, response)

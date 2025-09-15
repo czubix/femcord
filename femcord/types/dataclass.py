@@ -15,6 +15,15 @@ limitations under the License.
 """
 
 import dataclasses
+from typing import TypeVar, Type, Any, Callable, overload
+
+_T = TypeVar("_T", bound=type)
+
+@overload
+def dataclass(cls: _T, **kwargs: Any) -> _T: ...
+
+@overload
+def dataclass(**kwargs: Any) -> Callable[[_T], _T]: ...
 
 def dataclass(cls, **kwargs):
     if hasattr(cls, "from_raw") is True:

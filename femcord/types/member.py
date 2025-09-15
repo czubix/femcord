@@ -106,7 +106,7 @@ class Member:
         if channel:
             channel = channel.id
         if communication_disabled_until:
-            communication_disabled_until = communication_disabled_until.timestamp()
+            communication_disabled_until = communication_disabled_until.isoformat()
 
         return await self.__client.http.modify_member(self.guild_id, self.user.id, nick=nick, roles=roles, mute=mute, deaf=deaf, channel_id=channel, communication_disabled_until=communication_disabled_until)
 
