@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ from typing import Callable, Awaitable, Optional, Any, NoReturn, TypedDict, NotR
 if TYPE_CHECKING:
     from . import Context, AppContext
 
-Callback = Callable[..., Awaitable[None]]
+Callback = Callable[..., Awaitable[Any]]
 
 class CommandKwargs(TypedDict):
     type: CommandTypes
@@ -101,7 +101,7 @@ class Group(Command):
 
         return decorator
 
-    def get_subcommand(self, command: str) -> Optional[Command]:
+    def get_subcommand(self, command: str) -> Command | None:
         index = get_index(self.subcommands, command, key=lambda c: c.name)
 
         if index is None:

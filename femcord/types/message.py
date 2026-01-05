@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,8 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .dataclass import dataclass
+import asyncio
 
+from .dataclass import dataclass
+from dataclasses import field
+
+from ..http import Route
 from ..enums import MessageReferences, StickerFormatTypes, ComponentTypes, ButtonStyles, InteractionTypes, MessageTypes, MessageFlags
 from ..utils import parse_time
 
@@ -26,7 +30,7 @@ from .interaction import Interaction
 
 from datetime import datetime
 
-from typing import Optional, Sequence, Any, TYPE_CHECKING
+from typing import Optional, Sequence, List, Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -58,6 +62,7 @@ class Attachment:
     placeholder: Any = None
     content_scan_version: Any = None
     original_content_type: str = None
+    clip_participants: list = None
 
 @dataclass
 class MessageReference:
@@ -145,9 +150,9 @@ class MessageComponents:
 @dataclass
 class MessageReaction:
     __client: "Client"
-    count: int
-    me: bool
     emoji: Emoji
+    count: int = 0
+    me: Optional[bool] = None
 
     @classmethod
     async def from_raw(cls, client, reaction):
@@ -161,6 +166,8 @@ class MessageInteractionMetadata:
     id: str
     type: InteractionTypes
     user: "User"
+    original_response_message_id: str | None = None
+    interacted_message_id: str | None = None
 
     @classmethod
     async def from_raw(cls, client, interaction_metadata):
@@ -180,7 +187,7 @@ class Message:
     pinned: bool = None
     tts: bool = None
     type: MessageTypes = None
-    flags: int = None
+    flags: Sequence[MessageFlags] = None
     mentions: Sequence["User"] = None
     attachments: Sequence[Attachment] = None
     mention_roles: Sequence["Role"] = None
@@ -191,7 +198,7 @@ class Message:
     timestamp: datetime = None
     edited_timestamp: datetime = None
     sticker_items: Sequence[MessageSticker] = None
-    reactions: Sequence[MessageReaction] = None
+    reactions: List[MessageReaction] = field(default_factory=list)
     mention_channels: Sequence[Channel] = None
     webhook_id: str = None
     message_reference: MessageReference = None
@@ -255,7 +262,7 @@ class Message:
             message["reactions"] = [await MessageReaction.from_raw(client, reaction) for reaction in message["reactions"]]
         if "message_reference" in message:
             message["message_reference"] = await MessageReference.from_raw(client, message["message_reference"])
-        if "referenced_message" in message:
+        if "referenced_message" in message and message["referenced_message"]:
             message["referenced_message"] = await Message.from_raw(client, message["referenced_message"])
         if "attachments" in message:
             message["attachments"] = [Attachment(**attachment) for attachment in message["attachments"]]
@@ -270,7 +277,7 @@ class Message:
         if "interaction_metadata" in message:
             message["interaction_metadata"] = await MessageInteractionMetadata.from_raw(client, message["interaction_metadata"])
 
-        return cls(client, **message)
+        return Message(client, **message)
 
     async def reply(self, content: Optional[str] = None, *, embed: Optional["UserEmbed"] = None, embeds: Optional[Sequence["UserEmbed"]] = None, components: Optional["Components"] = None, files: Optional[list[tuple[str, str | bytes]]] = None, mentions: Optional[list] = [], stickers: Optional[list["Sticker"]] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> "Message":
         other = other or {}

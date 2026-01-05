@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ from ..utils import get_index
 
 from .channel import Channel
 
-from typing import Optional, Sequence, Union, TYPE_CHECKING
+from typing import Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -38,7 +38,7 @@ class InteractionDataOption:
     __client: "Client"
     name: str
     type: CommandOptionTypes
-    value: Optional[Union["User", Channel, "Role", str, float, int, bool]] = None
+    value: Optional["User | Channel | Role | str | float | int | bool"] = None
     options: Optional[Sequence["InteractionDataOption"]] = None
     focused: Optional[bool] = None
 
@@ -69,8 +69,9 @@ class InteractionData:
     custom_id: str = None
     component_type: ComponentTypes = None
     values: list = None
-    target: Union["User", "Message"] = None
+    target: "User | Message" = None
     components: Sequence["MessageComponents"] = None
+    resolved: dict = None
 
     __CHANGE_KEYS__ = (
         (
@@ -91,11 +92,9 @@ class InteractionData:
             data["component_type"] = ComponentTypes(data["component_type"])
         if "target" in data:
             if data["type"] == ApplicationCommandTypes.USER:
-                data["target"] = await client.gateway.get_user(data["target"])
+                data["target"] = await client.gateway.get_user(data["resolved"]["users"][data["target"]])
             elif data["type"] == ApplicationCommandTypes.MESSAGE:
-                guild = client.gateway.get_guild(guild_id)
-                if guild:
-                    data["target"] = await guild.get_channel(channel_id).get_message(data["target"])
+                data["target"] = await Message.from_raw(client, data["resolved"]["messages"][data["target"]])
         if "components" in data:
             data["components"] = [await MessageComponents.from_raw(client, component) for component in data["components"]]
 

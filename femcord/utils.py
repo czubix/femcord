@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ from .errors import InvalidArgument
 from datetime import datetime
 
 import re
+import base64
 
 from typing import Callable, Iterable, Optional, Any
 
@@ -40,10 +41,9 @@ class Missing:
 
 MISSING: Any = Missing()
 
-def parse_time(timestamp: str | datetime) -> Optional[datetime]:
-    if isinstance(timestamp, str):
-        timestamp = timestamp.replace(" ", "T")
-        return datetime.fromisoformat(timestamp)
+def parse_time(timestamp: Optional[str]) -> datetime | None:
+    if timestamp:
+        return datetime.fromisoformat(timestamp.replace(" ", "T"))
 
 def time_from_snowflake(snowflake: str) -> datetime:
     _snowflake = int(snowflake)
@@ -63,7 +63,10 @@ def get_mime(data: bytes) -> str:
 
     raise InvalidArgument("Unsupported image type given")
 
-def get_index(iterable: Iterable, value: Any, *, key: Optional[Callable] = None) -> Optional[int]:
+def data_uri_scheme(data: bytes) -> str:
+    return "data:" + get_mime(data) + ";base64," + base64.b64encode(data).decode()
+
+def get_index(iterable: Iterable, value: Any, *, key: Optional[Callable] = None) -> int | None:
     for i, v in enumerate(iterable):
         if key and key(v) == value:
             return i

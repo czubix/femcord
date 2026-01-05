@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -121,8 +121,8 @@ class User:
 
         return cls(client, **user)
 
-    @classmethod
-    def from_arg(cls, ctx: "Context", argument) -> "User":
+    @staticmethod
+    def from_arg(ctx: "Context", argument) -> "User":
         result = ID_PATTERN.search(argument)
 
         if result is not None:

@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ class Member:
                 member["communication_disabled_until"] = parse_time(member["communication_disabled_until"])
 
             for role in member["roles"][::-1]:
-                if role.hoist is True:
+                if role and role.hoist is True:
                     member["hoisted_role"] = role
                     break
 
@@ -85,8 +85,8 @@ class Member:
 
         return cls(client, **member)
 
-    @classmethod
-    def from_arg(cls, ctx: "Context", argument) -> "Member":
+    @staticmethod
+    def from_arg(ctx: "Context", argument) -> "Member":
         result = ID_PATTERN.search(argument)
 
         if result is not None:

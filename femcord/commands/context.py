@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ from .extension import Command, AppCommand
 from ..enums import InteractionCallbackTypes
 from ..utils import MISSING
 
-from typing import Union, Optional, Any, Awaitable, TYPE_CHECKING
+from typing import Optional, Any, Awaitable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .bot import Bot
@@ -43,7 +43,7 @@ class Context:
         self.member = message.member
 
         self.command: Command = MISSING
-        self.arguments: list[Any] = []
+        self.arguments: list["User | Channel | Role | str | float | int | bool"] = []
         self.error: Optional[Exception] = None
 
         self.send = self.channel.send
@@ -71,7 +71,7 @@ class AppContext:
         self.member = interaction.member
 
         self.command = command
-        self.arguments: list[Union["User", "Channel", "Role", str, float, int, bool]] = []
+        self.arguments: list["User | Channel | Role | str | float | int | bool"] = []
         self.error: Exception = MISSING
 
         self.replied = False

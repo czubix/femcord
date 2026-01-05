@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -96,13 +96,13 @@ class AuditLogChange:
         """Returns True if this is a command permission change (snowflake as key)."""
         return self.key.isdigit() and len(self.key) >= 17  # Discord snowflake length
 
-    def get_role_changes(self) -> Optional[list[dict]]:
+    def get_role_changes(self) -> list[dict] | None:
         """For partial role changes, returns the array of role objects."""
         if self.is_role_change and self.new_value:
             return self.new_value
         return None
 
-    def get_command_permission_entity_id(self) -> Optional[str]:
+    def get_command_permission_entity_id(self) -> str | None:
         """For command permission changes, returns the entity ID (role, channel, or user)."""
         if self.is_command_permission_change:
             return self.key
@@ -134,66 +134,66 @@ class AuditLogEntry:
         return cls(client, **entry)
 
     @property
-    def application_id(self) -> Optional[str]:
+    def application_id(self) -> str | None:
         """ID of the app whose permissions were targeted (APPLICATION_COMMAND_PERMISSION_UPDATE)"""
         return self.options.get("application_id") if self.options else None
 
     @property
-    def auto_moderation_rule_name(self) -> Optional[str]:
+    def auto_moderation_rule_name(self) -> str | None:
         """Name of the Auto Moderation rule that was triggered"""
         return self.options.get("auto_moderation_rule_name") if self.options else None
 
     @property
-    def auto_moderation_rule_trigger_type(self) -> Optional[str]:
+    def auto_moderation_rule_trigger_type(self) -> str | None:
         """Trigger type of the Auto Moderation rule that was triggered"""
         return self.options.get("auto_moderation_rule_trigger_type") if self.options else None
 
     @property
-    def channel_id(self) -> Optional[str]:
+    def channel_id(self) -> str | None:
         """Channel in which the entities were targeted"""
         return self.options.get("channel_id") if self.options else None
 
     @property
-    def count(self) -> Optional[str]:
+    def count(self) -> str | None:
         """Number of entities that were targeted"""
         return self.options.get("count") if self.options else None
 
     @property
-    def delete_member_days(self) -> Optional[str]:
+    def delete_member_days(self) -> str | None:
         """Number of days after which inactive members were kicked"""
         return self.options.get("delete_member_days") if self.options else None
 
     @property
-    def option_id(self) -> Optional[str]:
+    def option_id(self) -> str | None:
         """ID of the overwritten entity (using option_id to avoid conflict with class id)"""
         return self.options.get("id") if self.options else None
 
     @property
-    def members_removed(self) -> Optional[str]:
+    def members_removed(self) -> str | None:
         """Number of members removed by the prune"""
         return self.options.get("members_removed") if self.options else None
 
     @property
-    def message_id(self) -> Optional[str]:
+    def message_id(self) -> str | None:
         """ID of the message that was targeted"""
         return self.options.get("message_id") if self.options else None
 
     @property
-    def role_name(self) -> Optional[str]:
+    def role_name(self) -> str | None:
         """Name of the role if type is "0" (not present if type is "1")"""
         return self.options.get("role_name") if self.options else None
 
     @property
-    def overwrite_type(self) -> Optional[str]:
+    def overwrite_type(self) -> str | None:
         """Type of overwritten entity - role ("0") or member ("1")"""
         return self.options.get("type") if self.options else None
 
     @property
-    def integration_type(self) -> Optional[str]:
+    def integration_type(self) -> str | None:
         """The type of integration which performed the action"""
         return self.options.get("integration_type") if self.options else None
 
-    def get_change(self, key: str) -> Optional[AuditLogChange]:
+    def get_change(self, key: str) -> AuditLogChange | None:
         """Get a specific change by its key."""
         for change in self.changes:
             if change.key == key:
@@ -224,7 +224,7 @@ class AuditLogEntry:
         """Check if a specific field was changed."""
         return any(change.key == field_name for change in self.changes)
 
-    def get_field_change_value(self, field_name: str, get_new: bool = True) -> Optional[Any]:
+    def get_field_change_value(self, field_name: str, get_new: bool = True) -> Any | None:
         """Get the new or old value for a specific field change."""
         change = self.get_change(field_name)
         if change:
@@ -250,7 +250,7 @@ class Guild:
     joined_at: datetime
     large: bool
     member_count: int
-    members: list[Member]
+    members: dict[str, Member]
     channels: list[Channel]
     threads: list[Channel]
     description: str
@@ -330,7 +330,6 @@ class Guild:
         guild["emojis"] = [await Emoji.from_raw(client, emoji) for emoji in guild["emojis"]]
         guild["mfa_level"] = MfaLevel(guild["mfa_level"])
         guild["joined_at"] = parse_time(guild["joined_at"])
-        guild["members"] = []
         guild["channels"] = channels
         guild["threads"] = [await Channel.from_raw(client, thread) for thread in guild["threads"]]
         guild["nsfw_level"] = NSFWLevel(guild["nsfw_level"])
@@ -356,14 +355,29 @@ class Guild:
             guild["widget_channel"] = guild["channels"][index] if index is not None else None
         if "welcome_screen" in guild:
             guild["welcome_screen"] = await WelcomeScreen.from_raw(client, channels, guild["welcome_screen"])
+        
+        g = cls(client, **guild)
+        g.members = {}
 
-        return cls(client, **guild)
+        for member in guild["members"]:
+            if member["user"]["id"] == guild["owner"]:
+                if member["user"]["id"] in client.gateway.users:
+                    user = client.gateway.users[member["user"]["id"]]
+                else:
+                    user = await User.from_raw(client, member["user"])
+                    client.gateway.users[user.id] = user
+                owner = await Member.from_raw(client, g, member, user)
+                g.owner = owner
+                g.members[user.id] = owner
+                break
+
+        return g
 
     @property
     def default_role(self) -> Role:
         return [role for role in self.roles if role.id == self.id][0]
 
-    def get_channel(self, channel_id_or_name: str) -> Optional[Channel]:
+    def get_channel(self, channel_id_or_name: str) -> Channel | None:
         if not channel_id_or_name:
             return
 
@@ -371,7 +385,7 @@ class Guild:
             if channel.name.lower() == channel_id_or_name.lower() or channel.id == channel_id_or_name:
                 return channel
 
-    def get_role(self, role_id_or_name: str) -> Optional[Role]:
+    def get_role(self, role_id_or_name: str) -> Role | None:
         if not role_id_or_name:
             return
 
@@ -379,7 +393,7 @@ class Guild:
             if role.name.lower() == role_id_or_name.lower() or role.id == role_id_or_name:
                 return role
 
-    def get_emoji(self, emoji_name_or_id: str) -> Optional[Emoji]:
+    def get_emoji(self, emoji_name_or_id: str) -> Emoji | None:
         if not emoji_name_or_id:
             return
 
@@ -390,7 +404,7 @@ class Guild:
             if emoji.name.lower() == emoji_name_or_id.lower() or emoji.id == emoji_name_or_id:
                 return emoji
 
-    def get_sticker(self, sticker_name_or_id: str) -> Optional[Sticker]:
+    def get_sticker(self, sticker_name_or_id: str) -> Sticker | None:
         if not sticker_name_or_id:
             return
 
@@ -414,9 +428,14 @@ class Guild:
         return await self.__client.http.request(Route("GET", "guilds", self.id, "members", member_id))
 
     async def get_member(self, member: dict | str, user: Optional[User | dict] = None) -> Member:
-        for cached_member in self.members:
+        if isinstance(member, str) and member in self.members:
+            return self.members[member]
+
+        for cached_member in self.members.values():
             if isinstance(member, str):
-                if member.lower() in (cached_member.user.username.lower(), (cached_member.user.global_name or "").lower(), (cached_member.nick or "").lower(), cached_member.user.id):
+                if member.lower() in (cached_member.user.username.lower(), cached_member.user.id) + \
+                                     ((cached_member.user.global_name.lower(),) if cached_member.user.global_name else ()) + \
+                                     ((cached_member.nick.lower(),) if cached_member.nick else ()):
                     return cached_member
             elif isinstance(member, dict):
                 if user is not None:
@@ -440,7 +459,7 @@ class Guild:
             user = await self.__client.gateway.get_user(member["user"])
 
         member = await Member.from_raw(self.__client, self, member, user)
-        self.members.append(member)
+        self.members[member.user.id] = member
 
         return member
 

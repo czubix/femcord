@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import asyncio
 
 from .commands import Context, AppContext
 
-from typing import Union, Awaitable, TYPE_CHECKING
+from typing import Awaitable, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .types import Channel
@@ -53,7 +53,7 @@ class Typing:
         self.task.cancel()
 
 class HybridTyping:
-    def __init__(self, context: Union["Context", "AppContext"]) -> None:
+    def __init__(self, context: "Context | AppContext") -> None:
         self.context = context
         self.typing: Typing | None = None
 

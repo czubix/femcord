@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ import asyncio
 import aiohttp
 import zlib
 import json
+import traceback
 import logging
 
 from .enums import Opcodes
@@ -42,45 +43,48 @@ class WebSocket:
         self.gateway = gateway
         self.client = client
 
-        self.ws = await self.session.ws_connect(WebSocket.URL)
-        self.gateway.ws = self
-        self.client.gateway = self.gateway
+        while True:
+            self.ws = await self.session.ws_connect(WebSocket.URL)
+            self.gateway.ws = self
+            self.client.gateway = self.gateway
 
-        self.buffer = bytearray()
-        self.inflator = zlib.decompressobj()
+            self.buffer = bytearray()
+            self.inflator = zlib.decompressobj()
 
-        try:
-            async for message in self.ws:
-                if message.type in (aiohttp.WSMsgType.error, aiohttp.WSMsgType.closed):
-                    break
+            try:
+                async for message in self.ws:
+                    if message.type in (aiohttp.WSMsgType.error, aiohttp.WSMsgType.closed):
+                        print(message)
+                        break
+                    elif message.type is aiohttp.WSMsgType.binary:
+                        self.buffer.extend(message.data)
 
-                if message.type is aiohttp.WSMsgType.binary:
-                    self.buffer.extend(message.data)
+                        if len(message.data) < 4 or not message.data[-4:] == b"\x00\x00\xff\xff":
+                            continue
 
-                    if len(message.data) < 4 or not message.data[-4:] == b"\x00\x00\xff\xff":
-                        continue
+                        data = self.inflator.decompress(self.buffer)
+                        self.buffer = bytearray()
 
-                    data = self.inflator.decompress(self.buffer)
-                    self.buffer = bytearray()
+                        data = json.loads(data)
+                        op = data.get("op")
+                        d = data.get("d")
+                        s = data.get("s")
+                        t = data.get("t")
 
-                    data = json.loads(data)
-                    op = data.get("op")
-                    d = data.get("d")
-                    s = data.get("s")
-                    t = data.get("t")
+                        logging.debug(f"op: {Opcodes(op).name}, data: {None if not isinstance(data, dict) else d}, sequence number: {s}, event name: {t}")
 
-                    logging.debug(f"op: {Opcodes(op).name}, data: {None if not isinstance(data, dict) else d}, sequence number: {s}, event name: {t}")
+                        await self.gateway.on_message(Opcodes(op), d, s, t)
+                    else:
+                        print(message)
+            except Exception as exc:
+                traceback.print_exc()
+                # print(exc)
 
-                    await self.gateway.on_message(Opcodes(op), d, s, t)
-        except Exception as exc:
-            logging.error(exc)
-
-        self.gateway.heartbeat.stop()
-        await self.session.close()
-        self.gateway.ready = False
-        self.gateway.resuming = True
-        self.gateway.last_sequence_number = self.gateway.sequence_number
-        await WebSocket.__init__(self, self.gateway, self.client)
+            self.gateway.heartbeat.stop()
+            self.gateway.ready = False
+            self.gateway.resuming = True
+            self.gateway.last_sequence_number = self.gateway.sequence_number
+        # await WebSocket.__init__(self, self.gateway, self.client)
 
     async def send(self, op: Opcodes, data: dict, *, sequences: int = None) -> None:
         if self.ws.closed:

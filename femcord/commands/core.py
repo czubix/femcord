@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ from .extension import Command, Group, AppCommand
 
 from .enums import CommandTypes
 
-from typing import Callable, Union
+from typing import Callable
 from collections.abc import Awaitable
 
 def command(**kwargs) -> Callable[[Callable[..., Awaitable[None]]], Command]:
@@ -47,8 +47,8 @@ def app_command(**kwargs) -> Callable[[Callable[..., None]], AppCommand]:
 
     return decorator
 
-def hybrid_command(**kwargs) -> Callable[[Callable[..., Union[None, Awaitable[None]]]], tuple[Command, AppCommand]]:
-    def decorator(func: Callable[..., Union[None, Awaitable[None]]]) -> tuple[Command, AppCommand]:
+def hybrid_command(**kwargs) -> Callable[[Callable[..., None | Awaitable[None]]], tuple[Command, AppCommand]]:
+    def decorator(func: Callable[..., None | Awaitable[None]]) -> tuple[Command, AppCommand]:
         kwargs["callback"] = func
 
         command = Command(**(kwargs | {"type": CommandTypes.COMMAND}))

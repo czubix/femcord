@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .enums import ComponentTypes, ButtonStyles, TextInputStyles, PaddingSizes, SelectDefaultValueTypes
+from .enums import ComponentTypes, ButtonStyles, TextInputStyles, PaddingSizes, SelectDefaultValueTypes, ChannelTypes
 
-from typing import Unpack, Union, Optional, Self, Sequence, TypedDict, NotRequired, TYPE_CHECKING
+from typing import Unpack, Optional, Self, Sequence, TypedDict, NotRequired, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .types import Emoji
@@ -34,6 +34,10 @@ class Components(list):
         self.append(component)
         return self
 
+    def remove_component(self, component: "BaseComponent") -> Self:
+        self.remove(component)
+        return self
+
 class BaseComponentKwargs(TypedDict):
     id: NotRequired[Optional[int]]
 
@@ -47,7 +51,7 @@ class BaseComponent(dict):
         return self
 
 class ActionRowKwargs(BaseComponentKwargs):
-    components: NotRequired[list[BaseComponent]]
+    components: NotRequired[Sequence[BaseComponent]]
 
 class ActionRow(BaseComponent):
     def __init__(self, **kwargs: Unpack[ActionRowKwargs]) -> None:
@@ -57,7 +61,7 @@ class ActionRow(BaseComponent):
         self["components"] = kwargs.get("components", [])
 
 class ButtonKwargs(BaseComponentKwargs):
-    style: NotRequired[ButtonStyles]
+    style: ButtonStyles
     label: NotRequired[str]
     emoji: NotRequired["Emoji"]
     custom_id: NotRequired[str]
@@ -67,6 +71,26 @@ class ButtonKwargs(BaseComponentKwargs):
 
 class Button(BaseComponent):
     def __init__(self, **kwargs: Unpack[ButtonKwargs]) -> None:
+        """Initialises a Button component.
+
+        :param ButtonStyles style: The style of the button.
+        :param label: The label of the button.
+        :param emoji: The emoji of the button.
+        :param custom_id: The custom ID of the button.
+        :param sku_id: The SKU ID of the button.
+        :param url: The URL of the button.
+        :param disabled: Whether the button is disabled.
+
+        The style determines which fields are required or forbidden:
+
+        * :attr:`ButtonStyles.PRIMARY` — Requires ``custom_id``. Cannot have ``url`` or ``sku_id``.
+        * :attr:`ButtonStyles.SECONDARY` — Requires ``custom_id``. Cannot have ``url`` or ``sku_id``.
+        * :attr:`ButtonStyles.SUCCESS` — Requires ``custom_id``. Cannot have ``url`` or ``sku_id``.
+        * :attr:`ButtonStyles.DANGER` — Requires ``custom_id``. Cannot have ``url`` or ``sku_id``.
+        * :attr:`ButtonStyles.LINK` — Requires ``url``. Cannot have ``custom_id`` or ``sku_id``.
+        * :attr:`ButtonStyles.PREMIUM` — Requires ``sku_id``. Cannot have ``custom_id`` or ``url``.
+        """
+
         super().__init__(id=kwargs.get("id"))
 
         self["type"] = ComponentTypes.BUTTON.value
@@ -115,7 +139,7 @@ class StringSelect(BaseComponent):
     def __init__(self, **kwargs: Unpack[StringSelectKwargs]) -> None:
         super().__init__(id=kwargs.get("id"))
 
-        self["type"] = ComponentTypes.SELECT_MENU.value
+        self["type"] = ComponentTypes.STRING_SELECT.value
         self["custom_id"] = kwargs["custom_id"]
         self["options"] = kwargs.get("options", [])
         if (placeholder := kwargs.get("placeholder")):
@@ -210,11 +234,17 @@ class MentionableSelect(Select):
 
         self["type"] = ComponentTypes.MENTIONABLE_SELECT.value
 
+class ChannelSelectKwargs(SelectKwargs):
+    channel_types: NotRequired[list[ChannelTypes]]
+
 class ChannelSelect(Select):
-    def __init__(self, **kwargs: Unpack[SelectKwargs]) -> None:
+    def __init__(self, **kwargs: Unpack[ChannelSelectKwargs]) -> None:
         super().__init__(**kwargs)
 
         self["type"] = ComponentTypes.CHANNEL_SELECT.value
+
+        if (channel_types := kwargs.get("channel_types")):
+            self["channel_types"] = [channel_type.value for channel_type in channel_types]
 
 class TextDisplayKwargs(BaseComponentKwargs):
     content: str
@@ -283,7 +313,7 @@ class File(BaseComponent):
 
 class SectionKwargs(BaseComponentKwargs):
     components: NotRequired[list[BaseComponent]]
-    accessory: NotRequired[Union[Button, Thumbnail]]
+    accessory: NotRequired[Button | Thumbnail]
 
 class Section(BaseComponent):
     def __init__(self, **kwargs: Unpack[SectionKwargs]) -> None:
@@ -330,7 +360,7 @@ class Container(BaseComponent):
 class LabelKwargs(BaseComponentKwargs):
     label: str
     description: NotRequired[str]
-    component: NotRequired[Union[UserSelect, RoleSelect, MentionableSelect, ChannelSelect, StringSelect, TextInput]]
+    component: "NotRequired[UserSelect | RoleSelect | MentionableSelect | ChannelSelect | StringSelect | TextInput | FileUpload]"
 
 class Label(BaseComponent):
     def __init__(self, **kwargs: Unpack[LabelKwargs]) -> None:
@@ -342,3 +372,26 @@ class Label(BaseComponent):
             self["description"] = description
         if (component := kwargs.get("component")):
             self["component"] = component
+
+    def set_component(self, component: BaseComponent) -> Self:
+        self["component"] = component
+        return self
+
+class FileUploadKwargs(BaseComponentKwargs):
+    custom_id: str
+    min_values: NotRequired[int]
+    max_values: NotRequired[int]
+    required: NotRequired[bool]
+
+class FileUpload(BaseComponent):
+    def __init__(self, **kwargs: Unpack[FileUploadKwargs]) -> None:
+        super().__init__(id=kwargs.get("id"))
+
+        self["type"] = ComponentTypes.FILE_UPLOAD.value
+        self["custom_id"] = kwargs["custom_id"]
+        if (min_values := kwargs.get("min_values")):
+            self["min_values"] = min_values
+        if (max_values := kwargs.get("max_values")):
+            self["max_values"] = max_values
+        if (required := kwargs.get("required")):
+            self["required"] = required

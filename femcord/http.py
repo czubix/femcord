@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,7 +27,10 @@ from .errors import HTTPException
 import json
 import logging
 
-from typing import Optional, Sequence, Awaitable
+from typing import Optional, Sequence, Awaitable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .client import Client
 
 class Route:
     def __init__(self, method: str, *endpoint: str) -> None:
@@ -52,7 +55,7 @@ class HTTP:
         await instance.__init__(*args)
         return instance
 
-    async def __init__(self, client) -> None:
+    async def __init__(self, client: "Client") -> None:
         client.http = self
         self.loop = asyncio.get_event_loop()
         self.session: ClientSession = ClientSession(loop=self.loop)
@@ -60,8 +63,9 @@ class HTTP:
         self.bot: bool = client.bot
         self.routes: dict[Route, asyncio.Lock] = {}
 
-    async def request(self, route: Route, *, headers: Optional[dict] = {}, data: Optional[dict | FormData] = None, params: Optional[dict] = None, files: Optional[list[str | bytes]] = None) -> dict | str:
-        headers.update({"authorization": ("Bot " if self.bot is True else "") + self.token, "user-agent": "femcord"})
+    async def request(self, route: Route, *, headers: Optional[dict] = None, data: Optional[dict | FormData] = None, params: Optional[dict] = None, files: Optional[list[str | bytes]] = None) -> dict | str:
+        headers = headers or {}
+        headers.update({"authorization": ("Bot " if self.bot else "") + self.token, "user-agent": "femcord"})
 
         if isinstance(data, FormData):
             kwargs = dict(data=data)
@@ -244,7 +248,7 @@ class HTTP:
             data["data"]["sticker_ids"] = [sticker.id for sticker in stickers]
 
         if interaction_type is InteractionCallbackTypes.MODAL:
-            data["data"] = {"title": components.title, "custom_id": components.custom_id, "components": components}
+            data["data"] = {"title": title or components.title, "custom_id": custom_id or components.custom_id, "components": components}
 
         return self.request(Route("POST", "interactions", interaction_id, interaction_token, "callback"), data=data, files=files)
 

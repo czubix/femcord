@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -197,6 +197,21 @@ class MessageTypes(FemcordEnum):
     POLL_RESULT = 46
     CHANGELOG = 47
     NITRO_NOTIFICATION = 48
+    CHANNEL_LINKED_TO_LOBBY = 49
+    GIFTING_PROMPT = 50
+    IN_GAME_MESSAGE_NUX = 51
+    GUILD_JOIN_REQUEST_ACCEPT_NOTIFICATION = 52
+    GUILD_JOIN_REQUEST_REJECT_NOTIFICATION = 53
+    GUILD_JOIN_REQUEST_WITHDRAWN_NOTIFICATION = 54
+    HD_STREAMING_UPGRADED = 55
+    CHAT_WALLPAPER_SET = 56
+    CHAT_WALLPAPER_REMOVE = 57
+    REPORT_TO_MOD_DELETED_MESSAGE = 58
+    REPORT_TO_MOD_TIMEOUT_USER = 59
+    REPORT_TO_MOD_KICK_USER = 60
+    REPORT_TO_MOD_BAN_USER = 61
+    REPORT_TO_MOD_CLOSED_REPORT = 62
+    EMOJI_ADDED = 63
 
 class MessageReferences(FemcordEnum):
     DEFAULT = 0
@@ -205,7 +220,7 @@ class MessageReferences(FemcordEnum):
 class ComponentTypes(FemcordEnum):
     ACTION_ROW = 1
     BUTTON = 2
-    SELECT_MENU = 3
+    STRING_SELECT = 3
     TEXT_INPUT = 4
     USER_SELECT = 5
     ROLE_SELECT = 6
@@ -219,6 +234,7 @@ class ComponentTypes(FemcordEnum):
     SEPARATOR = 14
     CONTAINER = 17
     LABEL = 18
+    FILE_UPLOAD = 19
 
 class ButtonStyles(FemcordEnum):
     PRIMARY = 1

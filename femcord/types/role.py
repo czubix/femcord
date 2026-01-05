@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ from ..permissions import Permissions
 
 from datetime import datetime
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -55,8 +55,8 @@ class Role:
 
         return cls(client, **role)
 
-    @classmethod
-    def from_arg(cls, ctx: "Context", argument) -> Optional["Role"]:
+    @staticmethod
+    def from_arg(ctx: "Context", argument) -> "Role | None":
         result = ID_PATTERN.search(argument)
 
         if result is not None:

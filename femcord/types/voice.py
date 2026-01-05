@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ from .dataclass import dataclass
 
 from datetime import datetime
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -35,10 +35,10 @@ class VoiceState:
     self_mute: bool
     self_video: bool
     suppress: bool
-    guild: "Guild" = None
-    channel: "Channel" = None
-    self_stream: bool = None
-    request_timestamp: datetime = None
+    guild: Optional["Guild"] = None
+    channel: Optional["Channel"] = None
+    self_stream: Optional[bool] = None
+    request_timestamp: Optional[datetime] = None
 
     __CHANGE_KEYS__ = (
         (

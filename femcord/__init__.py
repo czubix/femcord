@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,9 +21,11 @@ from .components import Components, ActionRow, Button, StringSelectOption, \
                         StringSelect, TextInput, SelectDefaultValue, UserSelect, \
                         RoleSelect, MentionableSelect, ChannelSelect, Section, \
                         TextDisplay, UnfurledMediaItem, MediaItem, Thumbnail, \
-                        MediaGallery, File, Separator, Container, Label
+                        MediaGallery, File, Separator, Container, Label, FileUpload
 from .types import Presence, Activity
-from .enums import ActivityTypes, StatusTypes, ButtonStyles, TextInputStyles, InteractionCallbackTypes, InteractionTypes, PaddingSizes, SelectDefaultValueTypes, MessageFlags
+from .enums import ChannelTypes, ActivityTypes, StatusTypes, ButtonStyles, TextInputStyles, \
+                   InteractionCallbackTypes, InteractionTypes, PaddingSizes, \
+                   SelectDefaultValueTypes, MessageFlags, ApplicationCommandTypes
 from .errors import HTTPException, IntentNotExist, PermissionNotExist, InvalidArgument
 from .typing import Typing, HybridTyping
 from . import utils
@@ -41,9 +43,9 @@ __all__ = (
     "StringSelect", "TextInput", "SelectDefaultValue", "UserSelect",
     "RoleSelect", "MentionableSelect", "ChannelSelect", "Section",
     "TextDisplay", "UnfurledMediaItem", "MediaItem", "Thumbnail",
-    "MediaGallery", "File", "Separator", "Container", "Label",
+    "MediaGallery", "File", "Separator", "Container", "Label", "FileUpload",
     "Presence", "Activity",
-    "ActivityTypes", "StatusTypes", "ButtonStyles", "TextInputStyles", "InteractionCallbackTypes", "InteractionTypes", "PaddingSizes", "SelectDefaultValueTypes"
+    "ChannelTypes", "ActivityTypes", "StatusTypes", "ButtonStyles", "TextInputStyles", "InteractionCallbackTypes", "InteractionTypes", "PaddingSizes", "SelectDefaultValueTypes", "ApplicationCommandTypes"
     "HTTPException", "IntentNotExist", "PermissionNotExist", "InvalidArgument",
     "Typing",
     "HybridTyping",

@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -223,7 +223,7 @@ class Bot(Client):
 
         return decorator
 
-    def get_command(self, command: str, *, guild_id: Optional[str] = None) -> Optional[Command | Group]:
+    def get_command(self, command: str, *, guild_id: Optional[str] = None) -> Command | Group | None:
         commands = self.commands
 
         if guild_id is not None:
@@ -241,7 +241,7 @@ class Bot(Client):
 
         return commands[index]
 
-    def get_app_command(self, command: str) -> Optional[AppCommand]:
+    def get_app_command(self, command: str) -> AppCommand | None:
         index = get_index(self.app_commands, command, key=lambda command: command.name)
 
         if index is None:
@@ -328,7 +328,7 @@ class Bot(Client):
 
         cog.on_load()
 
-    def get_cog(self, cog: Cog) -> Optional[Cog]:
+    def get_cog(self, cog: Cog) -> Cog | None:
         index = get_index(self.cogs, cog, key=lambda cog: cog.name)
 
         if index is None:
@@ -378,7 +378,7 @@ class Bot(Client):
 
         self.extensions.append(extension)
 
-    def get_extension(self, extension: ModuleType) -> Optional[ModuleType]:
+    def get_extension(self, extension: ModuleType) -> ModuleType | None:
         index = get_index(self.extensions, extension, key=lambda command: command.__name__)
 
         if index is None:
@@ -400,7 +400,12 @@ class Bot(Client):
         del sys.modules[name]
         del self.extensions[index]
 
-    async def process_interaction_commands(self, interaction: "Interaction") -> None:
+    async def process_interaction_commands(self, interaction: "Interaction", *, before_call_functions: list[BeforeAfterFunction] | BeforeAfterFunction = [], after_call_functions: list[BeforeAfterFunction] | BeforeAfterFunction = []) -> None:
+        if callable(before_call_functions):
+            before_call_functions = [before_call_functions]
+        if callable(after_call_functions):
+            after_call_functions = [after_call_functions]
+
         on_error = "on_error" in (listener.__name__ for listener in self.listeners)
 
         command = self.get_app_command(interaction.data.name)
@@ -423,6 +428,9 @@ class Bot(Client):
         context.arguments = list(kwargs.values())
 
         async def run_command():
+            for before_call in self.before_call_functions + before_call_functions:
+                await before_call(context)
+
             try:
                 await command(context, *args, **kwargs)
             except Exception as error:
@@ -433,9 +441,12 @@ class Bot(Client):
 
                 await self.gateway.dispatch("error", context, error)
 
+            for after_call in self.after_call_functions + after_call_functions:
+                await after_call(context)
+
         self.loop.create_task(run_command())
 
-    async def process_commands(self, message: "Message", *, before_call_functions: list | BeforeAfterFunction = [], after_call_functions: list | BeforeAfterFunction = []) -> None:
+    async def process_commands(self, message: "Message", *, before_call_functions: list[BeforeAfterFunction] | BeforeAfterFunction = [], after_call_functions: list[BeforeAfterFunction] | BeforeAfterFunction = []) -> None:
         if callable(before_call_functions):
             before_call_functions = [before_call_functions]
         if callable(after_call_functions):
@@ -524,7 +535,6 @@ class Bot(Client):
                 parsed_argument = None
 
                 try:
-
                     if isinstance(annotation, AppCommandAttribute):
                         annotation = annotation.type
                     if is_dataclass(annotation) is True:

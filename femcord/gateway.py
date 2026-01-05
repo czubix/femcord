@@ -1,5 +1,5 @@
 """
-Copyright 2022-2025 czubix
+Copyright 2022-2026 czubix
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ from .utils import get_index, get_mime, parse_time, MISSING
 from .types import (
     Guild, Channel, Role,
     User, Member,
-    Message, MessageComponents, Attachment, Embed,
+    Message, MessageReaction, MessageComponents, Attachment, Embed,
     Interaction,
     Emoji, Sticker,
     Presence,
@@ -129,9 +129,8 @@ class Gateway:
         self.messages: list[Message] = []
 
         self.dispatched_ready = False
+        self.dispatched_once = False
         self.presence: Optional[Presence] = None
-
-        self.copied_objects: list[object] = []
 
         await WebSocket(self, client)
 
@@ -195,19 +194,13 @@ class Gateway:
             self.heartbeat.start()
 
             if self.resuming is True:
-                while (index := len(self.copied_objects)) > 0:
-                    del self.copied_objects[index - 1]
-                    index -= 1
-
                 await self.dispatch("reconnect")
                 return await self.resume()
 
             await self.identify()
 
         elif op is Opcodes.INVALID_SESSION:
-            while (index := len(self.copied_objects)) > 0:
-                del self.copied_objects[index - 1]
-                index -= 1
+            self.dispatched_ready = False
 
             await asyncio.sleep(5)
             await self.identify()
@@ -244,16 +237,22 @@ class Gateway:
 
         elif isinstance(event_name, str) and isinstance(data, dict):
             if self.dispatched_ready:
-                await self.dispatch("raw_" + event_name.lower(), copied_data := copy.copy(data))
-                del copied_data
+                await self.dispatch("raw_" + event_name.lower(), data.copy())
 
-            if not self.dispatched_ready and event_name == "GUILD_CREATE":
-                await self.guild_create(data)
+            if not self.dispatched_ready:
+                if event_name == "GUILD_CREATE":
+                    await self.guild_create(data)
+                elif event_name == "GUILD_DELETE":
+                    await self.guild_delete(data)
 
                 if len(self.unavailable_guilds) <= len(self.guilds):
                     self.dispatched_ready = True
 
-                    return await self.dispatch("ready")
+                    if not self.dispatched_once:
+                        self.dispatched_once = True
+                        await self.dispatch("ready")
+
+                    return
 
             if not self.dispatched_ready:
                 return
@@ -356,9 +355,13 @@ class Gateway:
         return await self.__http.request(Route("GET", "users", user_id))
 
     async def get_user(self, user: dict | str) -> User:
+        if isinstance(user, str) and user in self.users:
+            return self.users[user]
+
         for cached_user in self.users.values():
             if isinstance(user, str):
-                if user.lower() in (cached_user.username.lower(), (cached_user.global_name or "").lower(), cached_user.id):
+                if user.lower() in (cached_user.username.lower(), cached_user.id) + \
+                                   ((cached_user.global_name.lower(),) if cached_user.global_name else ()):
                     return cached_user
             elif isinstance(user, dict):
                 if user["id"] == cached_user.id:
@@ -371,16 +374,6 @@ class Gateway:
         self.users[user.id] = user
 
         return user
-
-    def copy[T](self, _object: T, deep: bool = False) -> T:
-        if deep is True:
-            copied_object = copy.deepcopy(_object)
-        elif deep is False:
-            copied_object = copy.copy(_object)
-
-        self.copied_objects.append(copied_object)
-
-        return copied_object
 
     @handler.event
     async def channel_create(self, channel):
@@ -404,7 +397,7 @@ class Gateway:
 
         index = get_index(guild.channels, channel.id, key=lambda c: c.id)
 
-        old_channel = self.copy(guild.channels[index])
+        old_channel = Channel(**guild.channels[index].__dict__)
         guild.channels[index] = channel
 
         return old_channel, channel
@@ -442,7 +435,7 @@ class Gateway:
         if index is None:
             return
 
-        old_thread = self.copy(guild.threads[index])
+        old_thread = Channel(**guild.threads[index].__dict__)
         guild.threads[index] = thread
 
         return old_thread, thread
@@ -460,7 +453,9 @@ class Gateway:
 
     async def add_members(self, guild: Guild, members: list[dict], presences: list[dict]) -> None:
         for member in members:
-            if member["user"]["id"] in self.users:
+            if isinstance(member["user"], User):
+                user = member["user"]
+            elif member["user"]["id"] in self.users:
                 user = self.users[member["user"]["id"]]
             else:
                 user = await User.from_raw(self.__client, member["user"])
@@ -468,14 +463,17 @@ class Gateway:
 
             await asyncio.sleep(0)
 
-            member = await Member.from_raw(self.__client, guild, member, user)
+            if isinstance(guild.owner, Member) and user.id == guild.owner.user.id:
+                member = guild.owner
+            else:
+                member = await Member.from_raw(self.__client, guild, member, user)
 
             if member.user.id == guild.owner:
                 guild.owner = member
-            elif member.user.id == self.bot_user.id:
+            if member.user.id == self.bot_user.id:
                 guild.me = member
 
-            guild.members.append(member)
+            guild.members[member.user.id] = member
 
             if presences:
                 for presence in presences:
@@ -510,14 +508,12 @@ class Gateway:
 
         if not guild:
             return
+        
+        member = guild.members.get(presence["user"]["id"])
 
-        index = get_index(guild.members, presence["user"]["id"], key=lambda m: m.user.id)
-
-        if not index:
+        if not member:
             return
-
-        member = guild.members[index]
-
+        
         member.presence = await Presence.from_raw(self.__client, presence)
 
         return member,
@@ -526,7 +522,7 @@ class Gateway:
     async def guild_update(self, guild):
         index = get_index(self.guilds, guild["id"], key=lambda g: g.id)
 
-        old_guild = self.copy(self.guilds[index])
+        old_guild = copy.copy(self.guilds[index])
 
         guild_object = self.guilds[index]
 
@@ -574,9 +570,16 @@ class Gateway:
 
     @handler.event
     async def guild_delete(self, guild):
-        guild = self.get_guild(guild["id"])
+        guild_id = guild["id"]
+        guild = self.get_guild(guild_id)
 
         if guild is None:
+            for index in range(len(self.unavailable_guilds)):
+                if guild_id == self.unavailable_guilds[index]["id"]:
+                    break
+            else:
+                return
+            del self.unavailable_guilds[index]
             return
 
         index = get_index(self.guilds, guild.id, key=lambda g: g.id)
@@ -602,7 +605,7 @@ class Gateway:
     async def guild_emojis_update(self, emojis):
         guild = self.get_guild(emojis["guild_id"])
 
-        old_emojis = self.copy(guild.emojis)
+        old_emojis = [Emoji(**emoji.__dict__) for emoji in guild.emojis]
         guild.emojis = [await Emoji.from_raw(self.__client, emoji) for emoji in emojis["emojis"]]
 
         return old_emojis, guild.emojis
@@ -611,7 +614,7 @@ class Gateway:
     async def guild_stickers_update(self, stickers):
         guild = self.get_guild(stickers["guild_id"])
 
-        old_stickers = self.copy(guild.stickers)
+        old_stickers = [Sticker(**sticker.__dict__) for sticker in guild.stickers]
         guild.stickers = [await Sticker.from_raw(self.__client, sticker) for sticker in stickers["stickers"]]
 
         return old_stickers, guild.stickers
@@ -636,7 +639,7 @@ class Gateway:
             return None, None, member
 
         try:
-            old_member = self.copy(await guild.get_member(member["user"]["id"]))
+            old_member = Member(**(await guild.get_member(member["user"]["id"])).__dict__)
         except HTTPException:
             return
 
@@ -648,12 +651,7 @@ class Gateway:
         self.users[user.id] = user
 
         member = await Member.from_raw(self.__client, guild, member, user)
-        member_index = get_index(guild.members, member.user.id, key=lambda m: m.user.id)
-
-        if member_index is None:
-            guild.members.append(member)
-        else:
-            guild.members[member_index] = member
+        guild.members[member.user.id] = member
 
         return guild, old_member, member
 
@@ -666,10 +664,8 @@ class Gateway:
 
         user = await self.get_user(user["user"])
 
-        index = get_index(guild.members, user.id, key=lambda m: m.user.id)
-
-        if index is not None:
-            del guild.members[index]
+        if user.id in guild.members:
+            del guild.members[user.id]
 
         return guild, user
 
@@ -689,7 +685,7 @@ class Gateway:
 
         index = get_index(guild.roles, role.id, key=lambda r: r.id)
 
-        old_role = self.copy(guild.roles[index])
+        old_role = Role(**guild.roles[index].__dict__)
         guild.roles[index] = role
 
         return guild, old_role, role
@@ -728,7 +724,7 @@ class Gateway:
             return None, None
 
         old_message = self.messages[index]
-        new_message = self.copy(old_message)
+        new_message = Message(**old_message.__dict__)
 
         if "content" in message:
             new_message.content = message["content"]
@@ -786,8 +782,23 @@ class Gateway:
 
         if index is None:
             message = reaction["message_id"]
+            # message = Message(self.__client, id=reaction["message_id"], channel=reaction["channel_id"])
+            # self.loop.create_task(message._resolve())
         else:
             message = self.messages[index]
+
+            if emoji.id is not None:
+                reaction_index = get_index(message.reactions, emoji.id, key=lambda r: r.emoji.id)
+            else:
+                reaction_index = get_index(message.reactions, emoji.name, key=lambda r: r.emoji.name)
+
+            if reaction_index is None:
+                reaction_object = await MessageReaction.from_raw(self.__client, reaction)
+                message.reactions.append(reaction_object)
+            else:
+                reaction_object = message.reactions[reaction_index]
+
+            reaction_object.count += 1
 
         if "member" in reaction:
             member = await guild.get_member(reaction["member"])
@@ -813,6 +824,17 @@ class Gateway:
             message = reaction["message_id"]
         else:
             message = self.messages[index]
+            
+            if emoji.id is not None:
+                reaction_index = get_index(message.reactions, emoji.id, key=lambda r: r.emoji.id)
+            else:
+                reaction_index = get_index(message.reactions, emoji.name, key=lambda r: r.emoji.name)
+
+            if reaction_index is not None:
+                message.reactions[reaction_index].count -= 1
+
+                if message.reactions[reaction_index].count <= 0:
+                    del message.reactions[reaction_index]
 
         if "member" in reaction:
             member = await guild.get_member(reaction["member"])
@@ -858,14 +880,21 @@ class Gateway:
 
         if voice_state["channel_id"] is not None:
             guild = self.get_guild_by_channel_id(voice_state["channel_id"])
+
+            if guild is None: # TODO: fix this
+                return
+
             channel = guild.get_channel(voice_state["channel_id"])
 
         if voice_state["guild_id"] is not None:
             guild = self.get_guild(voice_state["guild_id"])
 
+        if guild is None:
+            return
+
         member = await guild.get_member(voice_state["user_id"])
 
-        old_voice_state = self.copy(member.voice_state)
+        old_voice_state = VoiceState(**member.voice_state.__dict__)
 
         _voice_state = await VoiceState.from_raw(self.__client, voice_state)
         _voice_state.guild = guild
