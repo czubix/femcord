@@ -16,12 +16,15 @@ limitations under the License.
 
 from .dataclass import dataclass
 
-from ..enums import CommandOptionTypes, ApplicationCommandTypes, ComponentTypes, InteractionTypes, ChannelTypes, InteractionCallbackTypes, MessageFlags
+from ..enums import CommandOptionTypes, ApplicationCommandTypes, ComponentTypes, InteractionTypes, ChannelTypes, InteractionCallbackTypes, MessageFlags, InteractionContextTypes
 from ..utils import get_index
+from ..permissions import Permissions
 
 from .channel import Channel
+from .entitlement import Entitlement
+from .role import Role
 
-from typing import Optional, Sequence, TYPE_CHECKING
+from typing import Generic, Literal, Optional, Sequence, TypeVar, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -33,9 +36,12 @@ if TYPE_CHECKING:
     from .member import Member
     from .user import User
 
+# InteractionData = TypeVar("InteractionData", bound=Union["None", "PingInteraction", "ApplicationCommandData", "MessageComponentData", "ModalSubmitData"])
+# T = TypeVar("T", bound="InteractionTypes")
+
 @dataclass
 class InteractionDataOption:
-    __client: "Client"
+    __client: "Client" # type: ignore
     name: str
     type: CommandOptionTypes
     value: Optional["User | Channel | Role | str | float | int | bool"] = None
@@ -43,35 +49,46 @@ class InteractionDataOption:
     focused: Optional[bool] = None
 
     @classmethod
-    async def from_raw(cls, client, guild_id, dataoption):
+    async def from_raw(cls, client: "Client", guild: "Guild | None", dataoption: dict, resolved: dict | None):
         dataoption["type"] = CommandOptionTypes(dataoption["type"])
 
         match dataoption["type"]:
             case CommandOptionTypes.USER:
                 dataoption["value"] = await client.gateway.get_user(dataoption["value"])
             case CommandOptionTypes.CHANNEL:
-                dataoption["value"] = client.gateway.get_guild(guild_id).get_channel(dataoption["value"])
+                if guild is not None:
+                    dataoption["value"] = guild.get_channel(dataoption["value"])
+                elif resolved is None:
+                    dataoption["value"] = Channel(client, dataoption["value"], ChannelTypes.NONE)
+                else:
+                    resolved_channel = resolved["channels"][dataoption["value"]]
+                    dataoption["value"] = await Channel.from_raw(client, resolved_channel)
+
             case CommandOptionTypes.ROLE:
-                dataoption["value"] = client.gateway.get_guild(guild_id).get_role(dataoption["value"])
+                if guild is not None:
+                    dataoption["value"] = guild.get_role(dataoption["value"])
+                elif resolved is not None:
+                    resolved_role = resolved["roles"][dataoption["value"]]
+                    dataoption["value"] = await Role.from_raw(client, resolved_role)
 
         if "options" in dataoption:
-            dataoption["options"] = [await cls.from_raw(client, dataoption) for dataoption in dataoption["options"]]
+            dataoption["options"] = [await cls.from_raw(client, guild, dataoption, resolved) for dataoption in dataoption["options"]]
 
         return cls(client, **dataoption)
 
 @dataclass
 class InteractionData:
-    __client: "Client"
-    id: str = None
-    name: str = None
-    type: ApplicationCommandTypes = None
-    options: Sequence[InteractionDataOption] = None
-    custom_id: str = None
-    component_type: ComponentTypes = None
-    values: list = None
-    target: "User | Message" = None
-    components: Sequence["MessageComponents"] = None
-    resolved: dict = None
+    __client: "Client" # type: ignore
+    id: Optional[str] = None
+    name: Optional[str] = None
+    type: Optional[ApplicationCommandTypes] = None
+    options: Optional[Sequence[InteractionDataOption]] = None
+    custom_id: Optional[str] = None
+    component_type: Optional[ComponentTypes] = None
+    values: Optional[list] = None
+    target: Optional["User | Message"] = None
+    components: Optional[Sequence["MessageComponents"]] = None
+    resolved: Optional[dict] = None
 
     __CHANGE_KEYS__ = (
         (
@@ -81,13 +98,14 @@ class InteractionData:
     )
 
     @classmethod
-    async def from_raw(cls, client, ids, data):
+    async def from_raw(cls, client: "Client", ids: tuple[str | None, str | None], data: dict):
         guild_id, channel_id = ids
 
         if "type" in data:
             data["type"] = ApplicationCommandTypes(data["type"])
         if "options" in data:
-            data["options"] = [await InteractionDataOption.from_raw(client, guild_id, dataoption) for dataoption in data["options"]]
+            guild = client.gateway.get_guild(guild_id) if guild_id else None
+            data["options"] = [await InteractionDataOption.from_raw(client, guild, dataoption, data.get("resolved")) for dataoption in data["options"]]
         if "component_type" in data:
             data["component_type"] = ComponentTypes(data["component_type"])
         if "target" in data:
@@ -100,21 +118,89 @@ class InteractionData:
 
         return cls(client, **data)
 
+# @dataclass
+# class ApplicationCommandData:
+#     __client: "Client" # type: ignore
+#     id: str
+#     name: str
+#     type: ApplicationCommandTypes
+#     resolved: Optional[dict] = None
+#     options: Optional[Sequence[InteractionDataOption]] = None
+#     target: Optional["User | Message"] = None
+
+#     __CHANGE_KEYS__ = (
+#         (
+#             "target_id",
+#             "target"
+#         ),
+#     )
+
+#     @classmethod
+#     async def from_raw(cls, client: "Client", ids: tuple[str | None, str | None], data: dict) -> "ApplicationCommandData":
+#         guild_id, channel_id = ids
+
+#         data["type"] = ApplicationCommandTypes(data["type"])
+
+#         if "options" in data:
+#             guild = client.gateway.get_guild(guild_id) if guild_id else None
+#             data["options"] = [await InteractionDataOption.from_raw(client, guild, dataoption, data.get("resolved")) for dataoption in data["options"]]
+#         if "guild" in data:
+#             data["guild"] = client.gateway.get_guild(data["guild"])
+#         if "target" in data:
+#             if data["type"] == ApplicationCommandTypes.USER:
+#                 data["target"] = await client.gateway.get_user(data["resolved"]["users"][data["target"]])
+#             elif data["type"] == ApplicationCommandTypes.MESSAGE:
+#                 data["target"] = await Message.from_raw(client, data["resolved"]["messages"][data["target"]])
+
+#         return cls(client, **data)
+
+# @dataclass
+# class MessageComponentData:
+#     __client: "Client" # type: ignore
+#     custom_id: str
+#     component_type: ComponentTypes
+#     values: Optional[list] = None
+#     resolved: Optional[dict] = None
+
+#     @classmethod
+#     async def from_raw(cls, client: "Client", data: dict) -> "MessageComponentData":
+#         data["component_type"] = ComponentTypes(data["component_type"])
+#         return cls(client, **data)
+
+# @dataclass
+# class ModalSubmitData:
+#     __client: "Client" # type: ignore
+#     custom_id: str
+#     components: Sequence["MessageComponents"]
+#     resolved: Optional[dict] = None
+
+#     @classmethod
+#     async def from_raw(cls, client: "Client", data: dict) -> "ModalSubmitData":
+#         data["components"] = [await MessageComponents.from_raw(client, component) for component in data["components"]]
+#         return cls(client, **data)
+
 @dataclass
 class Interaction:
-    __client: "Client"
+    __client: "Client" # type: ignore
     id: str
-    type: InteractionTypes = None
-    application_id: str = None
-    token: str = None
-    version: int = None
-    data: InteractionData = None
-    guild: "Guild" = None
-    channel: Channel = None
-    member: "Member" = None
-    name: str = None
-    user: "User" = None
-    message: "Message" = None
+    application_id: str
+    type: InteractionTypes
+    token: str
+    version: int
+    entitlements: Sequence[Entitlement]
+    authorizing_integration_owners: dict[str, str]
+    attachment_size_limit: int
+    data: InteractionData = None # type: ignore
+    guild: Optional["Guild"] = None
+    channel: Optional[Channel] = None
+    member: Optional["Member"] = None
+    name: Optional[str] = None
+    user: Optional["User"] = None
+    message: Optional["Message"] = None
+    app_permissions: Optional[Permissions] = None
+    locale: Optional[str] = None
+    guild_locale: Optional[str] = None
+    context: Optional[InteractionContextTypes] = None
 
     __CHANGE_KEYS__ = (
         (
@@ -134,11 +220,18 @@ class Interaction:
         return "<Interaction id={!r} type={!r}>".format(self.id, self.type)
 
     @classmethod
-    async def from_raw(cls, client, interaction):
+    async def from_raw(cls, client: "Client", interaction: dict):
         if "type" in interaction:
             interaction["type"] = InteractionTypes(interaction["type"])
         if "data" in interaction:
-            interaction["data"] = await InteractionData.from_raw(client, (interaction.get("guild"), interaction.get("channel")), interaction["data"])
+            interaction["data"] = await InteractionData.from_raw(client, (interaction.get("guild_id"), interaction.get("channel_id")), interaction["data"])
+            # match interaction["type"]:
+            #     case InteractionTypes.APPLICATION_COMMAND:
+            #         interaction["data"] = await ApplicationCommandData.from_raw(client, (interaction.get("guild_id"), interaction.get("channel_id")), interaction["data"])
+            #     case InteractionTypes.MESSAGE_COMPONENT:
+            #         interaction["data"] = await MessageComponentData.from_raw(client, interaction["data"])
+            #     case InteractionTypes.MODAL_SUBMIT:
+            #         interaction["data"] = await ModalSubmitData.from_raw(client, interaction["data"])
         if "guild" in interaction:
             interaction["guild"] = client.gateway.get_guild(interaction["guild"])
             if interaction["guild"]:
@@ -161,18 +254,89 @@ class Interaction:
             else:
                 interaction["message"] = client.gateway.messages[index]
         if "channel" in interaction and isinstance(interaction["channel"], str):
-            interaction["channel"] = Channel(ChannelTypes.DM, interaction["channel"], *[None] * 17)
+            interaction["channel"] = Channel(client, interaction["channel"], ChannelTypes.DM)
+        if "app_permissions" in interaction:
+            interaction["app_permissions"] = Permissions.from_int(int(interaction["app_permissions"]))
+        if "locale" in interaction:
+            interaction["locale"] = interaction["locale"]
+        if "guild_locale" in interaction:
+            interaction["guild_locale"] = interaction["guild_locale"]
+        if "entitlements" in interaction:
+            interaction["entitlements"] = [Entitlement.from_raw(client, entitlement) for entitlement in interaction["entitlements"]]
 
         return cls(client, **interaction)
 
-    async def callback(self, interaction_type: InteractionCallbackTypes, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: Optional[str] = None, embed: "Embed" = None, embeds: Sequence["Embed"] = None, components: Optional["Components"] = None, files: Optional[list[tuple[str, str | bytes]]] = None, mentions: Optional[list] = [], flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None):
+    async def callback(
+            self,
+            interaction_type: InteractionCallbackTypes,
+            content: Optional[str] = None,
+            *,
+            title: Optional[str] = None,
+            custom_id: Optional[str] = None,
+            embed: Optional["Embed"] = None,
+            embeds: Optional[Sequence["Embed"]] = None,
+            components: Optional["Components"] = None,
+            files: Optional[list[tuple[str, str | bytes]]] = None,
+            mentions: Optional[list] = [],
+            flags: Optional[list[MessageFlags]] = None,
+            other: Optional[dict] = None
+    ) -> dict:
         return await self.__client.http.interaction_callback(self.id, self.token, interaction_type, content, title=title, custom_id=custom_id, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, flags=flags, other=other)
 
-    async def edit(self, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: Optional[str] = None, embed: "Embed" = None, embeds: Sequence["Embed"] = None, components: Optional["Components"] = None, files: Optional[list[tuple[str, bytes]]] = None, mentions: Optional[list] = [], flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None):
+    async def edit(
+            self,
+            content: Optional[str] = None,
+            *,
+            title: Optional[str] = None,
+            custom_id: Optional[str] = None,
+            embed: Optional["Embed"] = None,
+            embeds: Optional[Sequence["Embed"]] = None,
+            components: Optional["Components"] = None,
+            files: Optional[list[tuple[str, str | bytes]]] = None,
+            mentions: Optional[list] = [],
+            flags: Optional[list[MessageFlags]] = None,
+            other: Optional[dict] = None
+        ) -> None:
         await self.__client.http.interaction_edit(self.__client.gateway.bot_user.id, self.token, content, title=title, custom_id=custom_id, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, flags=flags, other=other)
 
-    async def send(self, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: Optional[str] = None, embed: "Embed" = None, embeds: Sequence["Embed"] = None, components: Optional["Components"] = None, files: Optional[list[tuple[str, bytes]]] = None, mentions: Optional[list] = [], flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None):
+    async def send(
+            self,
+            content: Optional[str] = None,
+            *,
+            title: Optional[str] = None,
+            custom_id: Optional[str] = None,
+            embed: Optional["Embed"] = None,
+            embeds: Optional[Sequence["Embed"]] = None,
+            components: Optional["Components"] = None,
+            files: Optional[list[tuple[str, str | bytes]]] = None,
+            mentions: Optional[list] = [],
+            flags: Optional[list[MessageFlags]] = None,
+            other: Optional[dict] = None
+    ) -> dict:
         return await self.__client.http.send_followup(self.__client.gateway.bot_user.id, self.token, content, title=title, custom_id=custom_id, embed=embed, embeds=embeds, components=components, files=files, mentions=mentions, flags=flags, other=other)
 
     async def delete(self):
         return await self.__client.http.interaction_delete(self.__client.gateway.bot_user.id, self.token)
+
+# @dataclass
+# class PingInteraction(Interaction[Literal[InteractionTypes.PING], None]):
+#     type: Literal[InteractionTypes.PING]
+#     data: None = None
+
+# @dataclass
+# class ApplicationCommandInteraction(Interaction[
+#     Union[Literal[InteractionTypes.APPLICATION_COMMAND], Literal[InteractionTypes.APPLICATION_COMMAND_AUTOCOMPLETE]],
+#     ApplicationCommandData
+# ]):
+#     type: Union[Literal[InteractionTypes.APPLICATION_COMMAND], Literal[InteractionTypes.APPLICATION_COMMAND_AUTOCOMPLETE]]
+#     data: ApplicationCommandData
+
+# @dataclass
+# class MessageComponentInteraction(Interaction[Literal[InteractionTypes.MESSAGE_COMPONENT], MessageComponentData]):
+#     type: Literal[InteractionTypes.MESSAGE_COMPONENT]
+#     data: MessageComponentData
+
+# @dataclass
+# class ModalSubmitInteraction(Interaction[Literal[InteractionTypes.MODAL_SUBMIT], ModalSubmitData]):
+#     type: Literal[InteractionTypes.MODAL_SUBMIT]
+#     data: ModalSubmitData

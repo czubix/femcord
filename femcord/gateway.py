@@ -24,7 +24,7 @@ import copy
 
 from .websocket import WebSocket
 from .http import HTTP, Route, HTTPException
-from .utils import get_index, get_mime, parse_time, MISSING
+from .utils import get_index, get_mime, parse_time, ID_PATTERN, MISSING
 
 from .types import (
     Guild, Channel, Role,
@@ -76,6 +76,8 @@ class Heartbeat:
         self.heartbeat_interval = heartbeat_interval
         self.heartbeat_task: asyncio.Task = None
         self.time: float = None
+        self.delta: float = 0
+        self.ack_future: Optional[asyncio.Future] = None
 
     def send(self) -> Awaitable[None]:
         return self.gateway.ws.send(Opcodes.HEARTBEAT, self.gateway.sequence_number)
@@ -84,9 +86,20 @@ class Heartbeat:
         await self.send()
 
         while True:
+            self.ack_future = self.loop.create_future()
             self.time = time.time()
-            await asyncio.sleep(self.heartbeat_interval / 1000)
-            await self.send()
+            await asyncio.sleep(self.heartbeat_interval / 1000 - self.delta)
+            try:
+                await self.send()
+                bef = time.perf_counter()
+                try:
+                    await asyncio.wait_for(self.ack_future, timeout=2)
+                except asyncio.TimeoutError:
+                    raise Exception("Heartbeat ACK not received in time, connection might be dead")
+                self.delta = time.perf_counter() - bef
+            except ConnectionResetError:
+                await self.gateway.ws.ws.close()
+                break
 
     def start(self) -> None:
         self.heartbeat_task = self.loop.create_task(self.heartbeat_loop())
@@ -208,6 +221,8 @@ class Gateway:
             await self.dispatch("reconnect")
 
         elif op is Opcodes.HEARTBEAT_ACK:
+            self.heartbeat.ack_future.set_result(None) # type: ignore
+
             if len(self.last_latencies) > self.last_latencies_limit:
                 self.last_latencies.pop(0)
 
@@ -352,6 +367,8 @@ class Gateway:
         del self.emojis[index]
 
     async def fetch_user(self, user_id: str) -> dict | str:
+        if not ID_PATTERN.match(user_id):
+            raise ValueError("invalid user_id")
         return await self.__http.request(Route("GET", "users", user_id))
 
     async def get_user(self, user: dict | str) -> User:
@@ -368,7 +385,7 @@ class Gateway:
                     return cached_user
 
         if isinstance(user, str):
-            user = await self.fetch_user(user)
+            user = await self.fetch_user(user)        
 
         user = await User.from_raw(self.__client, user)
         self.users[user.id] = user
@@ -504,6 +521,9 @@ class Gateway:
 
     @handler.event
     async def presence_update(self, presence):
+        if "guild_id" not in presence:
+            return
+
         guild = self.get_guild(presence["guild_id"])
 
         if not guild:
@@ -565,6 +585,11 @@ class Gateway:
             icon_url = HTTP.CDN_URL + "/icons/%s/%s.%s" % (guild["id"], guild["icon"], icon_format)
 
         guild_object.icon_url = icon_url
+
+        if guild["banner"] is not None:
+            banner_format = "gif" if guild["banner"][0:2] == "a_" else "png"
+            banner_url = HTTP.CDN_URL + "/banners/%s/%s.%s" % (guild["id"], guild["banner"], banner_format)
+            guild_object.banner_url = banner_url
 
         return old_guild, guild_object
 

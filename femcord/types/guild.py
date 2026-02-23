@@ -18,7 +18,7 @@ from .dataclass import dataclass
 
 from ..http import Route
 from ..enums import VerificationLevel, DefaultMessageNotification, ExplicitContentFilter, NSFWLevel, MfaLevel, AuditLogEvents
-from ..utils import get_index, parse_time, time_from_snowflake
+from ..utils import get_index, parse_time, time_from_snowflake, ID_PATTERN
 from ..errors import InvalidArgument
 
 from .channel import Channel
@@ -40,25 +40,25 @@ EXTENSIONS = ("png", "jpg", "jpeg", "webp", "gif")
 
 @dataclass
 class WelcomeScreenChannel:
-    __client: "Client"
+    __client: "Client" # type: ignore
     channel: Channel
     description: str
     emoji_id: str
     emoji_name: str
 
     @classmethod
-    async def from_raw(cls, client, channels: list[Channel], channel: dict):
+    async def from_raw(cls, client: "Client", channels: list[Channel], channel: dict):
         channel["channel"] = [_channel := [_channel for _channel in channels if _channel.id == channel["channel_id"]], _channel if len(_channel) >= 1 else None][1]
         return cls(client, **channel)
 
 @dataclass
 class WelcomeScreen:
-    __client: "Client"
+    __client: "Client" # type: ignore
     description: str
     welcome_channels: list[WelcomeScreenChannel]
 
     @classmethod
-    async def from_raw(cls, client, channels: list[Channel], welcomescreen: dict):
+    async def from_raw(cls, client: "Client", channels: list[Channel], welcomescreen: dict):
         welcomescreen["welcome_channels"] = [await WelcomeScreenChannel.from_raw(client, channels, channel) for channel in welcomescreen["welcome_channels"]]
 
         return cls(client, **welcomescreen)
@@ -66,13 +66,13 @@ class WelcomeScreen:
 @dataclass
 class AuditLogChange:
     """Represents a change in an audit log entry."""
-    __client: "Client"
+    __client: "Client" # type: ignore
     key: str
     new_value: Optional[Any] = None
     old_value: Optional[Any] = None
 
     @classmethod
-    def from_raw(cls, client, change: dict) -> "AuditLogChange":
+    def from_raw(cls, client: "Client", change: dict) -> "AuditLogChange":
         change_data = change.copy()
         return cls(client, **change_data)
 
@@ -110,7 +110,7 @@ class AuditLogChange:
 
 @dataclass
 class AuditLogEntry:
-    __client: "Client"
+    __client: "Client" # type: ignore
     id: str
     target_id: str
     changes: list[AuditLogChange]
@@ -120,7 +120,7 @@ class AuditLogEntry:
     reason: Optional[str] = None
 
     @classmethod
-    async def from_raw(cls, client, entry: dict) -> "AuditLogEntry":
+    async def from_raw(cls, client: "Client", entry: dict) -> "AuditLogEntry":
         entry["action_type"] = AuditLogEvents(entry["action_type"])
 
         if "changes" in entry:
@@ -233,7 +233,7 @@ class AuditLogEntry:
 
 @dataclass
 class Guild:
-    __client: "Client"
+    __client: "Client" # type: ignore
     id: str
     name: str
     icon: str
@@ -311,7 +311,7 @@ class Guild:
         return "<Guild id={!r} name={!r} owner={!r}>".format(self.id, self.name, self.owner)
 
     @classmethod
-    async def from_raw(cls, client, guild: dict) -> "Guild":
+    async def from_raw(cls, client: "Client", guild: dict) -> "Guild":
         icon_url = CDN_URL + "/icons/%s/%s.%s" % (guild["id"], guild["icon"], "gif" if guild["icon"] and guild["icon"][:2] == "a_" else "png")
         banner_url = CDN_URL + "/banners/%s/%s.%s" % (guild["id"], guild["banner"], "gif" if guild["banner"] and guild["banner"][:2] == "a_" else "png")
 
@@ -355,7 +355,7 @@ class Guild:
             guild["widget_channel"] = guild["channels"][index] if index is not None else None
         if "welcome_screen" in guild:
             guild["welcome_screen"] = await WelcomeScreen.from_raw(client, channels, guild["welcome_screen"])
-        
+
         g = cls(client, **guild)
         g.members = {}
 
@@ -424,8 +424,10 @@ class Guild:
 
         return CDN_URL + "/banners/%s/%s.%s" % (self.id, self.banner, extension)
 
-    async def fetch_member(self, member_id: str) -> dict[str, str]:
-        return await self.__client.http.request(Route("GET", "guilds", self.id, "members", member_id))
+    async def fetch_member(self, user_id: str) -> dict[str, str]:
+        if not ID_PATTERN.match(user_id):
+            raise ValueError("invalid user_id")
+        return await self.__client.http.request(Route("GET", "guilds", self.id, "members", user_id))
 
     async def get_member(self, member: dict | str, user: Optional[User | dict] = None) -> Member:
         if isinstance(member, str) and member in self.members:

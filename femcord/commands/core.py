@@ -21,8 +21,8 @@ from .enums import CommandTypes
 from typing import Callable
 from collections.abc import Awaitable
 
-def command(**kwargs) -> Callable[[Callable[..., Awaitable[None]]], Command]:
-    def decorator(func: Callable[..., Awaitable[None]]) -> Command:
+def command(**kwargs) -> Callable[[Callable[..., Awaitable]], Command]:
+    def decorator(func: Callable[..., Awaitable]) -> Command:
         kwargs["type"] = CommandTypes.COMMAND
         kwargs["callback"] = func
 
@@ -30,8 +30,8 @@ def command(**kwargs) -> Callable[[Callable[..., Awaitable[None]]], Command]:
 
     return decorator
 
-def group(**kwargs) -> Callable[[Callable[..., Awaitable[None]]], Group]:
-    def decorator(func: Callable[..., Awaitable[None]]) -> Group:
+def group(**kwargs) -> Callable[[Callable[..., Awaitable]], Group]:
+    def decorator(func: Callable[..., Awaitable]) -> Group:
         kwargs["type"] = CommandTypes.GROUP
         kwargs["callback"] = func
 
@@ -39,16 +39,16 @@ def group(**kwargs) -> Callable[[Callable[..., Awaitable[None]]], Group]:
 
     return decorator
 
-def app_command(**kwargs) -> Callable[[Callable[..., None]], AppCommand]:
-    def decorator(func: Callable[..., None]) -> AppCommand:
+def app_command(**kwargs) -> Callable[[Callable[..., Awaitable]], AppCommand]:
+    def decorator(func: Callable[..., Awaitable]) -> AppCommand:
         kwargs["callback"] = func
 
         return AppCommand(**kwargs)
 
     return decorator
 
-def hybrid_command(**kwargs) -> Callable[[Callable[..., None | Awaitable[None]]], tuple[Command, AppCommand]]:
-    def decorator(func: Callable[..., None | Awaitable[None]]) -> tuple[Command, AppCommand]:
+def hybrid_command(**kwargs) -> Callable[[Callable[..., Awaitable]], tuple[Command, AppCommand]]:
+    def decorator(func: Callable[..., Awaitable]) -> tuple[Command, AppCommand]:
         kwargs["callback"] = func
 
         command = Command(**(kwargs | {"type": CommandTypes.COMMAND}))

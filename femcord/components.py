@@ -357,10 +357,85 @@ class Container(BaseComponent):
         if (spoiler := kwargs.get("spoiler")):
             self["spoiler"] = spoiler
 
+class GroupOptionKwargs(BaseComponentKwargs):
+    value: str
+    label: str
+    description: NotRequired[str]
+    default: NotRequired[bool]
+
+class GroupOption(BaseComponent):
+    def __init__(self, **kwargs: Unpack[GroupOptionKwargs]) -> None:
+        super().__init__(id=kwargs.get("id"))
+
+        self["value"] = kwargs.get("value")
+        self["label"] = kwargs.get("label")
+        if (description := kwargs.get("description")):
+            self["description"] = description
+        if (default := kwargs.get("default")):
+            self["default"] = default
+
+class RadioGroupKwargs(BaseComponentKwargs):
+    custom_id: str
+    options: list[GroupOption]
+    required: NotRequired[bool]
+
+class RadioGroup(BaseComponent):
+    def __init__(self, **kwargs: Unpack[RadioGroupKwargs]) -> None:
+        super().__init__(id=kwargs.get("id"))
+
+        self["type"] = ComponentTypes.RADIO_GROUP.value
+        self["custom_id"] = kwargs.get("custom_id")
+        self["options"] = kwargs.get("options", [])
+        if (required := kwargs.get("required")):
+            self["required"] = required
+
+    def add_option(self, option: GroupOption) -> Self:
+        self["options"].append(option)
+        return self
+
+class CheckboxGroupKwargs(BaseComponentKwargs):
+    custom_id: str
+    options: list[GroupOption]
+    min_values: NotRequired[int]
+    max_values: NotRequired[int]
+    required: NotRequired[bool]
+
+class CheckboxGroup(BaseComponent):
+    def __init__(self, **kwargs: Unpack[CheckboxGroupKwargs]) -> None:
+        super().__init__(id=kwargs.get("id"))
+
+        self["type"] = ComponentTypes.CHECKBOX_GROUP.value
+        self["custom_id"] = kwargs.get("custom_id")
+        self["options"] = kwargs.get("options", [])
+        if (min_values := kwargs.get("min_values")):
+            self["min_values"] = min_values
+        if (max_values := kwargs.get("max_values")):
+            self["required"] = max_values
+        if (required := kwargs.get("required")):
+            self["required"] = required
+
+    def add_option(self, option: GroupOption) -> Self:
+        self["options"].append(option)
+        return self
+
+class CheckboxKwargs(BaseComponentKwargs):
+    custom_id: str
+    default: NotRequired[bool]
+
+class Checkbox(BaseComponent):
+    def __init__(self, **kwargs: Unpack[CheckboxKwargs]) -> None:
+        super().__init__(id=kwargs.get("id"))
+
+        self["type"] = ComponentTypes.CHECKBOX.value
+        self["custom_id"] = kwargs.get("custom_id")
+
+        if (default := kwargs.get("default")):
+            self["default"] = default
+
 class LabelKwargs(BaseComponentKwargs):
     label: str
     description: NotRequired[str]
-    component: "NotRequired[UserSelect | RoleSelect | MentionableSelect | ChannelSelect | StringSelect | TextInput | FileUpload]"
+    component: "NotRequired[UserSelect | RoleSelect | MentionableSelect | ChannelSelect | StringSelect | TextInput | FileUpload | RadioGroup | CheckboxGroup | Checkbox]"
 
 class Label(BaseComponent):
     def __init__(self, **kwargs: Unpack[LabelKwargs]) -> None:

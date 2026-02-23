@@ -22,18 +22,22 @@ from .embed import Embed
 from .components import Components
 
 from .enums import MessageFlags, InteractionCallbackTypes
-from .errors import HTTPException
+from .errors import HTTPException, InvalidArgument
 
 import json
 import logging
 
-from typing import Optional, Sequence, Awaitable, TYPE_CHECKING
+from typing import Any, Awaitable, Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .client import Client
 
 class Route:
     def __init__(self, method: str, *endpoint: str) -> None:
+        for e in endpoint:
+            if ".." in e or "/" in e:
+                raise ValueError
+
         self.method = method
         self.endpoint = "/" + "/".join(endpoint)
 
@@ -63,14 +67,28 @@ class HTTP:
         self.bot: bool = client.bot
         self.routes: dict[Route, asyncio.Lock] = {}
 
-    async def request(self, route: Route, *, headers: Optional[dict] = None, data: Optional[dict | FormData] = None, params: Optional[dict] = None, files: Optional[list[str | bytes]] = None) -> dict | str:
+    async def request(
+            self,
+            route: Route,
+            *,
+            headers: Optional[dict] = None,
+            data: Optional[dict[str, Any] | FormData] = None,
+            params: Optional[dict] = None,
+            files: Optional[list[tuple[str, str | bytes]]] = None,
+            reason: Optional[str] = None
+    ) -> dict:
         headers = headers or {}
         headers.update({"authorization": ("Bot " if self.bot else "") + self.token, "user-agent": "femcord"})
 
+        if reason is not None:
+            headers["X-Audit-Log-Reason"] = reason
+
+        kwargs: dict[str, Any]
+
         if isinstance(data, FormData):
-            kwargs = dict(data=data)
+            kwargs = {"data": data}
         else:
-            kwargs = dict(json=data)
+            kwargs = {"json": data}
 
         if params is not None:
             kwargs["params"] = params
@@ -91,16 +109,25 @@ class HTTP:
             async with self.session.request(route.method, HTTP.URL + route.endpoint, headers=headers, **kwargs) as response:
                 logging.debug(f"{route.method} {route.endpoint}, data: {data}, params: {params}, files: {[file[0] for file in files] if files is not None else None}; status: {response.status}, text: {await response.text()}")
 
+                # TODO: rework logic
+                # response_data = {}
+
+                # if response.content_type == "application/json":
+                #     response_data = await response.json()
+
                 try:
                     response_data = await response.json()
                 except ContentTypeError:
                     response_data = await response.text()
 
                 if 300 > response.status >= 200:
-                    return response_data
+                    return response_data # type: ignore
                 elif response.status == 429:
-                    await asyncio.sleep(response_data["retry_after"])
+                    await asyncio.sleep(response_data["retry_after"]) # type: ignore
                 else:
+                    # if not response_data:
+                    #     response_data = await response.text()
+
                     message = response_data
 
                     if isinstance(response_data, dict):
@@ -132,7 +159,20 @@ class HTTP:
     def start_typing(self, channel_id: str) -> Awaitable[dict]:
         return self.request(Route("POST", "channels", channel_id, "typing"))
 
-    def send_message(self, channel_id: str, content: Optional[str] = None, *, embed: Optional[Embed] = None, embeds: Optional[Sequence[Embed]] = None, components: Optional[Components] = None, files: Optional[list[tuple[str, str | bytes]]] = None, mentions: Optional[list] = None, stickers: Optional[list] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> Awaitable[dict]:
+    def send_message(
+            self,
+            channel_id: str,
+            content: Optional[str] = None,
+            *,
+            embed: Optional[Embed] = None,
+            embeds: Optional[Sequence[Embed]] = None,
+            components: Optional[Components] = None,
+            files: Optional[list[tuple[str, str | bytes]]] = None,
+            mentions: Optional[list] = None,
+            stickers: Optional[list] = None,
+            flags: Optional[list[MessageFlags]] = None,
+            other: Optional[dict] = None
+    ) -> Awaitable[dict]:
         other = other or {}
 
         if flags:
@@ -167,7 +207,21 @@ class HTTP:
 
         return self.request(Route("POST", "channels", channel_id, "messages"), data=data, files=files or [])
 
-    def edit_message(self, channel_id: str, message_id: str, content: Optional[str] = None, *, embed: Optional[Embed] = None, embeds: Optional[Sequence[Embed]] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> Awaitable[dict]:
+    def edit_message(
+            self,
+            channel_id: str,
+            message_id: str,
+            content: Optional[str] = None,
+            *,
+            embed: Optional[Embed] = None,
+            embeds: Optional[Sequence[Embed]] = None,
+            components: Optional[Components] = None,
+            files: Optional[list[tuple[str, str | bytes]]] = [],
+            mentions: Optional[list] = [],
+            stickers: Optional[list] = None,
+            flags: Optional[list[MessageFlags]] = None,
+            other: Optional[dict] = None
+    ) -> Awaitable[dict]:
         other = other or {}
 
         if flags:
@@ -208,7 +262,24 @@ class HTTP:
     def set_channel_voice_status(self, channel_id: str, status: str) -> Awaitable[dict]:
         return self.request(Route("PUT", "channels", channel_id, "voice-status"), data={"status": status})
 
-    def interaction_callback(self, interaction_id: str, interaction_token: str, interaction_type: InteractionCallbackTypes, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: str = None, embed: Embed = None, embeds: Sequence[Embed] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> Awaitable[dict]:
+    def interaction_callback(
+            self,
+            interaction_id: str,
+            interaction_token: str,
+            interaction_type: InteractionCallbackTypes,
+            content: Optional[str] = None,
+            *,
+            title: Optional[str] = None,
+            custom_id: Optional[str] = None,
+            embed: Optional[Embed] = None,
+            embeds: Optional[Sequence[Embed]] = None,
+            components: Optional[Components] = None,
+            files: Optional[list[tuple[str, str | bytes]]] = [],
+            mentions: Optional[list] = [],
+            stickers: Optional[list] = None,
+            flags: Optional[list[MessageFlags]] = None,
+            other: Optional[dict] = None
+    ) -> Awaitable[dict]:
         other = other or {}
 
         if flags:
@@ -248,11 +319,30 @@ class HTTP:
             data["data"]["sticker_ids"] = [sticker.id for sticker in stickers]
 
         if interaction_type is InteractionCallbackTypes.MODAL:
+            if components is None:
+                raise InvalidArgument("Interaction type InteractionCallbackTypes.MODAL requires components.")
+
             data["data"] = {"title": title or components.title, "custom_id": custom_id or components.custom_id, "components": components}
 
         return self.request(Route("POST", "interactions", interaction_id, interaction_token, "callback"), data=data, files=files)
 
-    def interaction_edit(self, application_id: str, interaction_token: str, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: str = None, embed: Embed = None, embeds: Sequence[Embed] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> Awaitable[dict]:
+    def interaction_edit(
+            self,
+            application_id: str,
+            interaction_token: str,
+            content: Optional[str] = None,
+            *,
+            title: Optional[str] = None,
+            custom_id: Optional[str] = None,
+            embed: Optional[Embed] = None,
+            embeds: Optional[Sequence[Embed]] = None,
+            components: Optional[Components] = None,
+            files: Optional[list[tuple[str, str | bytes]]] = [],
+            mentions: Optional[list] = [],
+            stickers: Optional[list] = None,
+            flags: Optional[list[MessageFlags]] = None,
+            other: Optional[dict] = None
+    ) -> Awaitable[dict]:
         other = other or {}
 
         if flags:
@@ -296,7 +386,23 @@ class HTTP:
     def interaction_delete(self, application_id: str, interaction_token: str) -> Awaitable[dict]:
         return self.request(Route("DELETE", "webhooks", application_id, interaction_token, "messages", "@original"))
 
-    def send_followup(self, application_id: str, interaction_token: str, content: Optional[str] = None, *, title: Optional[str] = None, custom_id: str = None, embed: Embed = None, embeds: Sequence[Embed] = None, components: Optional[Components] = None, files: Optional[list[str | bytes]] = [], mentions: Optional[list] = [], stickers: Optional[list] = None, flags: Optional[list[MessageFlags]] = None, other: Optional[dict] = None) -> Awaitable[dict]:
+    def send_followup(
+            self,
+            application_id: str,
+            interaction_token: str,
+            content: Optional[str] = None,
+            *,
+            title: Optional[str] = None,
+            custom_id: Optional[str] = None,
+            embed: Optional[Embed] = None,
+            embeds: Optional[Sequence[Embed]] = None,
+            components: Optional[Components] = None,
+            files: Optional[list[tuple[str, str | bytes]]] = [],
+            mentions: Optional[list] = [],
+            stickers: Optional[list] = None,
+            flags: Optional[list[MessageFlags]] = None,
+            other: Optional[dict] = None
+    ) -> Awaitable[dict]:
         other = other or {}
 
         if flags:
@@ -338,30 +444,27 @@ class HTTP:
         return self.request(Route("POST", "webhooks", application_id, interaction_token), data=data, files=files)
 
     def kick_member(self, guild_id: str, member_id: str, reason: Optional[str] = None) -> Awaitable[dict]:
-        headers = {}
-
-        if reason is not None:
-            headers["X-Audit-Log-Reason"] = reason
-
-        return self.request(Route("DELETE", "guilds", guild_id, "members", member_id), headers=headers)
+        return self.request(Route("DELETE", "guilds", guild_id, "members", member_id), reason=reason)
 
     def ban_member(self, guild_id: str, member_id: str, reason: Optional[str] = None, delete_message_seconds: Optional[int] = 0) -> Awaitable[dict]:
-        headers = {}
-
-        if reason is not None:
-            headers["X-Audit-Log-Reason"] = reason
-
-        return self.request(Route("PUT", "guilds", guild_id, "bans", member_id), headers=headers, data={"delete_message_seconds": delete_message_seconds})
+        return self.request(Route("PUT", "guilds", guild_id, "bans", member_id), reason=reason, data={"delete_message_seconds": delete_message_seconds})
 
     def unban_member(self, guild_id: str, member_id: str, reason: Optional[str] = None) -> Awaitable[dict]:
-        headers = {}
+        return self.request(Route("DELETE", "guilds", guild_id, "bans", member_id), reason=reason)
 
-        if reason is not None:
-            headers["X-Audit-Log-Reason"] = reason
-
-        return self.request(Route("DELETE", "guilds", guild_id, "bans", member_id), headers=headers)
-
-    def modify_member(self, guild_id: str, member_id: str, *, nick: Optional[str] = None, roles: Optional[list[str]] = None, mute: Optional[bool] = None, deaf: Optional[bool] = None, channel_id: Optional[str] = None, communication_disabled_until: Optional[int] = None) -> Awaitable[dict]:
+    def modify_member(
+            self,
+            guild_id: str,
+            member_id: str,
+            *,
+            nick: Optional[str] = None,
+            roles: Optional[list[str]] = None,
+            mute: Optional[bool] = None,
+            deaf: Optional[bool] = None,
+            channel_id: Optional[str] = None,
+            communication_disabled_until: Optional[int] = None,
+            reason: Optional[str] = None
+        ) -> Awaitable[dict]:
         data: dict = {}
 
         if nick is not None:
@@ -377,9 +480,10 @@ class HTTP:
 
         data["channel_id"] = channel_id
 
-        return self.request(Route("PATCH", "guilds", guild_id, "members", member_id), data=data)
+        return self.request(Route("PATCH", "guilds", guild_id, "members", member_id), data=data, reason=reason)
 
     def add_role(self, guild_id: str, member_id: str, role_id: str) -> Awaitable[dict]:
+
         return self.request(Route("PUT", "guilds", guild_id, "members", member_id, "roles", role_id))
 
     def remove_role(self, guild_id: str, member_id: str, role_id: str) -> Awaitable[dict]:
@@ -408,8 +512,8 @@ class HTTP:
     def open_dm(self, user_id: str) -> Awaitable[dict]:
         return self.request(Route("POST", "users", "@me", "channels"), data={"recipient_id": user_id})
 
-    def audit_log(self, guild_id: str, limit: int = 100, before: Optional[str] = None, after: Optional[str] = None) -> Awaitable[list]:
-        params = {"limit": limit}
+    def audit_log(self, guild_id: str, limit: int = 100, before: Optional[str] = None, after: Optional[str] = None) -> Awaitable[dict]:
+        params: dict[str, Any] = {"limit": limit}
 
         if before is not None:
             params["before"] = before

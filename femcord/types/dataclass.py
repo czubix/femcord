@@ -15,7 +15,8 @@ limitations under the License.
 """
 
 import dataclasses
-from typing import TypeVar, Any, Callable, overload
+from typing import TypeVar, Any, Callable, overload, dataclass_transform
+
 
 _T = TypeVar("_T", bound=type)
 
@@ -25,6 +26,7 @@ def dataclass(cls: _T, **kwargs: Any) -> _T: ...
 @overload
 def dataclass(**kwargs: Any) -> Callable[[_T], _T]: ...
 
+@dataclass_transform()
 def dataclass(cls, **kwargs):
     if hasattr(cls, "from_raw") is True:
         cls.original_from_raw = cls.from_raw

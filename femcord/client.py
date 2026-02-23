@@ -23,7 +23,7 @@ from .utils import MISSING
 
 from datetime import datetime
 
-from typing import Callable, Optional
+from typing import Awaitable, Callable, Optional
 
 class Client:
     def __init__(self, *, intents: Intents = Intents.default(), messages_limit: int = 1000, last_latencies_limit: int = 100, mobile: bool = False) -> None:
@@ -33,20 +33,20 @@ class Client:
         self.intents = intents
         self.http: HTTP = MISSING
         self.gateway: Gateway = MISSING
-        self.listeners: list[Callable[..., None]] = []
+        self.listeners: list[Callable[..., Awaitable]] = []
         self.waiting_for: list[tuple[str, asyncio.Future, Callable[..., bool]]] = []
         self.messages_limit = messages_limit
         self.last_latencies_limit = last_latencies_limit
         self.mobile = mobile
         self.started_at = datetime.now()
 
-    def event(self, function: Callable[..., None], *, name: Optional[str] = None) -> None:
+    def event(self, function: Callable[..., Awaitable], *, name: Optional[str] = None) -> None: # pyright: ignore[reportRedeclaration]
         if name:
             event = function
             def function(*args, **kwargs) -> None:
                 event(*args, **kwargs)
             function.__name__ = name
-        self.listeners.append(function)
+        self.listeners.append(function) # pyright: ignore[reportArgumentType]
 
     async def wait_for(self, event: str, check: Optional[Callable[..., bool]] = None, *, timeout: Optional[float] = None) -> asyncio.Future:
         future = self.loop.create_future()
@@ -77,6 +77,6 @@ class Client:
             on_closes = [listener() for listener in self.listeners if listener.__name__ == "on_close"]
 
             for on_close in on_closes:
-                self.loop.run_until_complete(on_close)
+                self.loop.run_until_complete(on_close) # pyright: ignore[reportArgumentType]
 
             self.gateway.heartbeat.stop()

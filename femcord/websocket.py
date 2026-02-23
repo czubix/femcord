@@ -78,7 +78,7 @@ class WebSocket:
                         print(message)
             except Exception as exc:
                 traceback.print_exc()
-                # print(exc)
+                print(exc)
 
             self.gateway.heartbeat.stop()
             self.gateway.ready = False
@@ -106,4 +106,4 @@ class WebSocket:
         try:
             await self.ws.send_json(ready_data)
         except ConnectionResetError:
-            pass
+            await self.ws.close()

@@ -55,7 +55,7 @@ class Intents:
 
         return self
 
-    def get_int(self) -> "Intents":
+    def get_int(self) -> int:
         return reduce(lambda a, b: a | b, [intent.value for intent in IntentsEnum if intent in self.intents])
 
     def has(self, intent: IntentsEnum | str) -> bool:

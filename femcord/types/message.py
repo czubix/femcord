@@ -63,6 +63,8 @@ class Attachment:
     content_scan_version: Any = None
     original_content_type: str = None
     clip_participants: list = None
+    clip_created_at: str = None
+    application: str = None
 
 @dataclass
 class MessageReference:

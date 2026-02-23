@@ -22,7 +22,7 @@ from ..errors import InvalidArgument
 from ..enums import ApplicationCommandTypes, InteractionTypes, CommandOptionTypes
 from ..utils import get_index
 
-from .extension import Cog, Command, Group, AppCommand, Listener
+from .extension import Cog, Command, Group, AppCommand, AppCommandGroup, Listener
 from .enums import CommandTypes
 from .context import Context, AppContext
 from .typing import AppCommandAttribute
@@ -41,7 +41,7 @@ import inspect
 import traceback
 import sys
 
-from typing import Callable, Awaitable, Optional, Any, TYPE_CHECKING
+from typing import Callable, Awaitable, Optional, Any, Union, TYPE_CHECKING, get_origin, get_args
 
 if TYPE_CHECKING:
     from ..types import Message, Interaction
@@ -126,12 +126,18 @@ class Bot(Client):
         def get_type(_type: User | Channel | Role | str | int | float | bool | UnionType | AppCommandAttribute) -> CommandOptionTypes:
             if _type in types:
                 return types[_type]
-            elif isinstance(_type, UnionType):
-                for _type in _type.__args__:
-                    if _type in types:
-                        return types[_type]
-            elif isinstance(_type, AppCommandAttribute):
+
+            if isinstance(_type, AppCommandAttribute):
                 return types[_type.type]
+
+            origin = get_origin(_type)
+
+            if origin is Union or origin is UnionType:
+                for arg in get_args(_type):
+                    if arg is type(None):
+                        continue
+                    if arg in types:
+                        return types[arg]
 
             raise TypeError(f"'{_type}' type is not supported")
 
@@ -174,8 +180,8 @@ class Bot(Client):
 
         await self.http.request(Route("PUT", "applications", self.gateway.bot_user.id, "commands"), data=commands + ([self._entry_point] if self._entry_point else []))
 
-    def command(self, **kwargs) -> Callable[[Callable[..., None]], Command]:
-        def decorator(func: Callable[..., None]) -> Command:
+    def command(self, **kwargs) -> Callable[[Callable[..., Awaitable]], Command]:
+        def decorator(func: Callable[..., Awaitable]) -> Command:
             kwargs["type"] = CommandTypes.COMMAND
             kwargs["callback"] = func
 
@@ -186,8 +192,8 @@ class Bot(Client):
 
         return decorator
 
-    def group(self, **kwargs) -> Callable[[Callable[..., None]], Group]:
-        def decorator(func: Callable[..., None]) -> Group:
+    def group(self, **kwargs) -> Callable[[Callable[..., Awaitable]], Group]:
+        def decorator(func: Callable[..., Awaitable]) -> Group:
             kwargs["type"] = CommandTypes.GROUP
             kwargs["callback"] = func
 
@@ -198,8 +204,9 @@ class Bot(Client):
 
         return decorator
 
-    def app_command(self, **kwargs) -> Callable[[Callable[..., None]], AppCommand]:
-        def decorator(func: Callable[..., None]) -> AppCommand:
+    def app_command(self, **kwargs) -> Callable[[Callable[..., Awaitable]], AppCommand]:
+        def decorator(func: Callable[..., Awaitable]) -> AppCommand:
+            kwargs["_type"] = CommandTypes.COMMAND
             kwargs["callback"] = func
 
             command = AppCommand(**kwargs)
@@ -209,11 +216,24 @@ class Bot(Client):
 
         return decorator
 
-    def hybrid_command(self, **kwargs) -> Callable[[Callable[..., None]], tuple[Command, AppCommand]]:
-        def decorator(func: Callable[..., None]) -> tuple[Command, AppCommand]:
+    def app_command_group(self, **kwargs) -> Callable[[Callable[..., Awaitable]], AppCommandGroup]:
+        def decorator(func: Callable[..., Awaitable]) -> AppCommandGroup:
+            kwargs["_type"] = CommandTypes.GROUP
+            kwargs["callback"] = func
+
+            group = AppCommandGroup(**kwargs)
+            self.app_commands.append(group)
+
+            return group
+
+        return decorator
+
+    def hybrid_command(self, **kwargs) -> Callable[[Callable[..., Awaitable]], tuple[Command, AppCommand]]:
+        def decorator(func: Callable[..., Awaitable]) -> tuple[Command, AppCommand]:
             kwargs["callback"] = func
 
             command = Command(**(kwargs | {"type": CommandTypes.COMMAND}))
+            # TODO: Implement _type and proper AppCommandGroup handling for AppCommand and AppCommandGroup
             app_command = AppCommand(**kwargs)
 
             self.commands.append(command)
@@ -284,7 +304,7 @@ class Bot(Client):
             commands.append(command)
 
             if command.type == CommandTypes.GROUP:
-                commands += command.walk_subcommands()
+                commands += command.walk_subcommands() # type: ignore
 
         return commands
 
@@ -413,7 +433,7 @@ class Bot(Client):
         if not command:
             return
 
-        context = self.app_context(self, interaction, command)
+        context = self.app_context(self, interaction, command) # type: ignore
 
         args = []
         kwargs = {}
@@ -452,7 +472,7 @@ class Bot(Client):
         if callable(after_call_functions):
             after_call_functions = [after_call_functions]
 
-        prefixes = prefix = await self.command_prefix(self, message)
+        prefixes = prefix = await self.command_prefix(self, message) # type: ignore
 
         if not isinstance(prefix, str):
             for _prefix in prefixes:
@@ -468,7 +488,7 @@ class Bot(Client):
         if arguments:
             arguments = arguments[0].split(" ")
 
-        context = self.context(self, message)
+        context = self.context(self, message) # type: ignore
 
         command_object = self.get_command(command)
         skip_arguments = 1
@@ -477,12 +497,12 @@ class Bot(Client):
             command_object = self.get_command(command, guild_id=context.guild.id)
 
         while command_object and arguments and command_object.type is CommandTypes.GROUP:
-            command_object = command_object.get_subcommand(arguments[0])
+            command_object = command_object.get_subcommand(arguments[0]) # type: ignore
             arguments = arguments[1:]
 
         if command_object is None:
             error = CommandNotFound(f"{command} was not found")
-            context.arguments = arguments
+            context.arguments = arguments # type: ignore
 
             if not on_error:
                 raise error
@@ -510,7 +530,7 @@ class Bot(Client):
         if not len(arguments) >= len(command_arguments) - len(default_arguments):
             command_argument = command_arguments[len(arguments)].name
             error = MissingArgument(f"{command_argument} was not specified", command, command_arguments, arguments, command_argument)
-            context.arguments = arguments
+            context.arguments = arguments # type: ignore
 
             if not on_error:
                 raise error
@@ -552,11 +572,11 @@ class Bot(Client):
                     arguments[index] = parsed_argument
                     break
                 except Exception:
-                    errors.append(annotation.__name__)
+                    errors.append(annotation.__name__) # type: ignore
 
             if (len(errors), len(annotations)) == (1, 1):
                 error = InvalidArgumentType(f"'{annotations[0].__name__}' type is not valid for '{command_argument.name}' argument", command, command_arguments, arguments, command_argument.name)
-                context.arguments = arguments
+                context.arguments = arguments # type: ignore
 
                 if not on_error:
                     raise error
@@ -566,7 +586,7 @@ class Bot(Client):
             if len(errors) == len(annotations):
                 apostrophe = "'"
                 error = InvalidArgumentType(f"{', '.join(apostrophe + annotation.__name__ + apostrophe for annotation in annotations[:-1]) + ' and ' + apostrophe + annotations[-1].__name__ + apostrophe} types are not valid for '{command_argument.name}' argument", command, command_arguments, arguments, command_argument.name)
-                context.arguments = arguments
+                context.arguments = arguments # type: ignore
 
                 if not on_error:
                     raise error
@@ -580,7 +600,7 @@ class Bot(Client):
 
             elif command_argument.kind == command_argument.VAR_POSITIONAL:
                 argument = arguments[index:]
-                context.arguments.append(argument)
+                context.arguments.append(argument) # type: ignore
                 args.append(argument)
 
             elif command_argument.kind == command_argument.KEYWORD_ONLY:
@@ -597,7 +617,7 @@ class Bot(Client):
             try:
                 await command(context, *args, **kwargs)
             except Exception as error:
-                context.arguments = arguments
+                context.arguments = arguments # type: ignore
                 context.error = error
 
                 if not on_error:

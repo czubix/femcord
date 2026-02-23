@@ -34,7 +34,7 @@ class Permissions:
     def __repr__(self) -> str:
         return "<Permissions permissions={!r} value={!r}>".format(self.permissions, self.get_int())
 
-    def check(self, permission: int) -> PermissionsEnum:
+    def check(self, permission: PermissionsEnum | str) -> PermissionsEnum:
         if not isinstance(permission, PermissionsEnum) and permission.upper() in (i.name for i in PermissionsEnum):
             permission = PermissionsEnum[permission.upper()]
 
@@ -43,13 +43,13 @@ class Permissions:
 
         return permission
 
-    def add(self, permission: int) -> "Permissions":
+    def add(self, permission: PermissionsEnum | str) -> "Permissions":
         permission = self.check(permission)
         self.permissions.append(permission)
 
         return self
 
-    def remove(self, permission: int) -> "Permissions":
+    def remove(self, permission: PermissionsEnum | str) -> "Permissions":
         permission = self.check(permission)
         self.permissions.remove(permission)
 
@@ -61,7 +61,7 @@ class Permissions:
 
         return reduce(lambda a, b: a | b, [permission.value for permission in PermissionsEnum if permission in self.permissions])
 
-    def has(self, permission: int) -> bool:
+    def has(self, permission: PermissionsEnum | str) -> bool:
         permission = self.check(permission)
 
         if PermissionsEnum.ADMINISTRATOR in self.permissions:

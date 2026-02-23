@@ -129,8 +129,10 @@ class Group(Command):
 class AppCommand:
     def __init__(self, **kwargs) -> None:
         self.cog: Optional[Cog] = kwargs.get("cog", None)
+        self.parent: Optional[str] = kwargs.get("parent", None)
 
         self.type: ApplicationCommandTypes = kwargs.get("type", ApplicationCommandTypes.CHAT_INPUT)
+        self._type: CommandTypes = kwargs.get("_type", CommandTypes.COMMAND)
         self.callback: Callback = kwargs["callback"]
         self.name: str = kwargs.get("name") or self.callback.__name__
         self.description: Optional[str] = kwargs.get("description")
@@ -151,6 +153,57 @@ class AppCommand:
             return await self.callback(self.cog, context, *args, **kwargs)
 
         return await self.callback(context, *args, **kwargs)
+
+class AppCommandGroup(AppCommand):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.subcommands: list[AppCommand] = []
+
+    def app_command(self, **kwargs) -> Callable[[Callable[..., Awaitable]], AppCommand]:
+        def decorator(func: Callable[..., Awaitable]) -> AppCommand:
+            kwargs["parent"] = self.name
+            kwargs["_type"] = CommandTypes.SUBCOMMAND
+            kwargs["callback"] = func
+
+            command = AppCommand(**kwargs)
+            self.subcommands.append(command)
+
+            return command
+
+        return decorator
+
+    def group(self, **kwargs) -> Callable[..., "AppCommandGroup"]:
+        def decorator(func: Callback) -> "AppCommandGroup":
+            kwargs["parent"] = self.name
+            kwargs["_type"] = CommandTypes.GROUP
+            kwargs["callback"] = func
+
+            group = AppCommandGroup(**kwargs)
+            self.subcommands.append(group)
+
+            return group
+
+        return decorator
+
+    def get_subcommand(self, command: str) -> AppCommand | None:
+        index = get_index(self.subcommands, command, key=lambda c: c.name)
+
+        if index is None:
+            return
+
+        return self.subcommands[index]
+
+    def walk_subcommands(self) -> list[Command]:
+        commands = []
+
+        for command in self.subcommands:
+            if command._type == CommandTypes.GROUP:
+                command = cast(AppCommandGroup, command)
+                commands.extend(command.walk_subcommands())
+
+            commands.append(command)
+
+        return commands
 
 class Listener:
     def __init__(self, callback: Callback, *, name: Optional[str] = None) -> None:

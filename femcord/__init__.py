@@ -21,7 +21,8 @@ from .components import Components, ActionRow, Button, StringSelectOption, \
                         StringSelect, TextInput, SelectDefaultValue, UserSelect, \
                         RoleSelect, MentionableSelect, ChannelSelect, Section, \
                         TextDisplay, UnfurledMediaItem, MediaItem, Thumbnail, \
-                        MediaGallery, File, Separator, Container, Label, FileUpload
+                        MediaGallery, File, Separator, Container, Label, FileUpload, \
+                        GroupOption, RadioGroup, CheckboxGroup, Checkbox
 from .types import Presence, Activity
 from .enums import ChannelTypes, ActivityTypes, StatusTypes, ButtonStyles, TextInputStyles, \
                    InteractionCallbackTypes, InteractionTypes, PaddingSizes, \

@@ -235,6 +235,9 @@ class ComponentTypes(FemcordEnum):
     CONTAINER = 17
     LABEL = 18
     FILE_UPLOAD = 19
+    RADIO_GROUP = 21
+    CHECKBOX_GROUP = 22
+    CHECKBOX = 23
 
 class ButtonStyles(FemcordEnum):
     PRIMARY = 1
@@ -419,6 +422,16 @@ class SelectDefaultValueTypes(FemcordEnum):
 class PaddingSizes(FemcordEnum):
     SMALL = 1
     LARGE = 2
+
+class EntitlementTypes(FemcordEnum):
+    PURCHASE = 1
+    PREMIUM_SUBSCRIPTION = 2
+    DEVELOPER_GIFT = 3
+    TEST_MODE_PURCHASE = 4
+    FREE_PURCHASE = 5
+    USER_GIFT = 6
+    PREMIUM_PURCHASE = 7
+    APPLICATION_SUBSCRIPTION = 8
 
 class AuditLogEvents(FemcordEnum):
     GUILD_UPDATE = 1
