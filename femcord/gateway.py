@@ -221,6 +221,7 @@ class Gateway:
             await self.dispatch("reconnect")
 
         elif op is Opcodes.HEARTBEAT_ACK:
+            # if self.heartbeat.ack_future is not None and not self.heartbeat.ack_future.done():
             self.heartbeat.ack_future.set_result(None) # type: ignore
 
             if len(self.last_latencies) > self.last_latencies_limit:

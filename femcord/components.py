@@ -71,26 +71,6 @@ class ButtonKwargs(BaseComponentKwargs):
 
 class Button(BaseComponent):
     def __init__(self, **kwargs: Unpack[ButtonKwargs]) -> None:
-        """Initialises a Button component.
-
-        :param ButtonStyles style: The style of the button.
-        :param label: The label of the button.
-        :param emoji: The emoji of the button.
-        :param custom_id: The custom ID of the button.
-        :param sku_id: The SKU ID of the button.
-        :param url: The URL of the button.
-        :param disabled: Whether the button is disabled.
-
-        The style determines which fields are required or forbidden:
-
-        * :attr:`ButtonStyles.PRIMARY` — Requires ``custom_id``. Cannot have ``url`` or ``sku_id``.
-        * :attr:`ButtonStyles.SECONDARY` — Requires ``custom_id``. Cannot have ``url`` or ``sku_id``.
-        * :attr:`ButtonStyles.SUCCESS` — Requires ``custom_id``. Cannot have ``url`` or ``sku_id``.
-        * :attr:`ButtonStyles.DANGER` — Requires ``custom_id``. Cannot have ``url`` or ``sku_id``.
-        * :attr:`ButtonStyles.LINK` — Requires ``url``. Cannot have ``custom_id`` or ``sku_id``.
-        * :attr:`ButtonStyles.PREMIUM` — Requires ``sku_id``. Cannot have ``custom_id`` or ``url``.
-        """
-
         super().__init__(id=kwargs.get("id"))
 
         self["type"] = ComponentTypes.BUTTON.value
