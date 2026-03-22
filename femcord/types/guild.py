@@ -16,7 +16,7 @@ limitations under the License.
 
 from .dataclass import dataclass
 
-from ..http import Route
+from ..http import Route, SearchGuildMessagesKwargs
 from ..enums import VerificationLevel, DefaultMessageNotification, ExplicitContentFilter, NSFWLevel, MfaLevel, AuditLogEvents
 from ..utils import get_index, parse_time, time_from_snowflake, ID_PATTERN
 from ..errors import InvalidArgument
@@ -27,10 +27,11 @@ from .role import Role
 from .emoji import Emoji
 from .sticker import Sticker
 from .member import Member
+from .message import Message
 
 from datetime import datetime
 
-from typing import Optional, TYPE_CHECKING, Any
+from typing import Optional, TYPE_CHECKING, Any, Unpack
 
 if TYPE_CHECKING:
     from ..client import Client
@@ -474,3 +475,11 @@ class Guild:
     async def audit_log(self, limit: int = 100, before: Optional[str] = None, after: Optional[str] = None) -> list[AuditLogEntry]:
         response = await self.__client.http.audit_log(self.id, limit=limit, before=before, after=after)
         return [await AuditLogEntry.from_raw(self.__client, entry) for entry in response["audit_log_entries"]]
+
+    async def search_messages(self, **kwargs: Unpack[SearchGuildMessagesKwargs]) -> list[Message]:
+        response = await self.__client.http.search_guild_messages(self.id, **kwargs)
+
+        if "messages" not in response:
+            return []
+
+        return [await Message.from_raw(self.__client, hit) for message in response["messages"] for hit in message if hit["hit"] is True]

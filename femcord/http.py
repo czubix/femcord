@@ -27,10 +27,36 @@ from .errors import HTTPException, InvalidArgument
 import json
 import logging
 
-from typing import Any, Awaitable, Optional, Sequence, TYPE_CHECKING
+from typing import Any, Awaitable, Optional, Sequence, Literal, TYPE_CHECKING, TypedDict, Unpack
 
 if TYPE_CHECKING:
     from .client import Client
+
+class SearchGuildMessagesKwargs(TypedDict, total=False):
+    limit: int
+    offset: int
+    max_id: str
+    min_id: str
+    slop: int
+    content: str
+    channel_id: list[str]
+    author_type: list[Literal["user", "bot", "webhook", "-user", "-bot", "-webhook"]]
+    author_id: list[str]
+    mentions: list[str]
+    mentions_role_id: list[str]
+    mentions_everyone: bool
+    replied_to_user_id: list[str]
+    replied_to_message_id: list[str]
+    pinned: bool
+    has: list[Literal["image", "sound", "video", "file", "sticker", "embed", "link", "poll", "snapshot", "-image", "-sound", "-video", "-file", "-sticker", "-embed", "-link", "-poll", "-snapshot"]]
+    embed_type: list[Literal["image", "video", "gif", "sound", "article", "-image", "-video", "-gif", "-sound", "-article"]]
+    embed_provider: list[str]
+    link_hostname: list[str]
+    attachment_filename: list[str]
+    attachment_extension: list[str]
+    sort_by: Literal["timestamp", "relevance"]
+    sort_order: Literal["asc", "desc"]
+    include_nsfw: bool
 
 class Route:
     def __init__(self, method: str, *endpoint: str) -> None:
@@ -110,10 +136,6 @@ class HTTP:
                 logging.debug(f"{route.method} {route.endpoint}, data: {data}, params: {params}, files: {[file[0] for file in files] if files is not None else None}; status: {response.status}, text: {await response.text()}")
 
                 # TODO: rework logic
-                # response_data = {}
-
-                # if response.content_type == "application/json":
-                #     response_data = await response.json()
 
                 try:
                     response_data = await response.json()
@@ -125,9 +147,6 @@ class HTTP:
                 elif response.status == 429:
                     await asyncio.sleep(response_data["retry_after"]) # type: ignore
                 else:
-                    # if not response_data:
-                    #     response_data = await response.text()
-
                     message = response_data
 
                     if isinstance(response_data, dict):
@@ -483,7 +502,6 @@ class HTTP:
         return self.request(Route("PATCH", "guilds", guild_id, "members", member_id), data=data, reason=reason)
 
     def add_role(self, guild_id: str, member_id: str, role_id: str) -> Awaitable[dict]:
-
         return self.request(Route("PUT", "guilds", guild_id, "members", member_id, "roles", role_id))
 
     def remove_role(self, guild_id: str, member_id: str, role_id: str) -> Awaitable[dict]:
@@ -521,3 +539,6 @@ class HTTP:
             params["after"] = after
 
         return self.request(Route("GET", "guilds", guild_id, "audit-logs"), params=params)
+
+    def search_guild_messages(self, guild_id: str, **kwargs: Unpack[SearchGuildMessagesKwargs]) -> Awaitable[dict]:
+        return self.request(Route("GET", "guilds", guild_id, "messages", "search"), params={**kwargs})
